@@ -1,71 +1,24 @@
 """
-Authentication manager for Upstream SDK.
+Authentication manager for Upstream SDK using OpenAPI client.
 """
 
-import time
 from typing import Optional, Dict, Any
 import logging
 from datetime import datetime, timedelta
 
-import requests
+from upstream_client import Configuration, ApiClient
+from upstream_client.api import AuthApi
+from upstream_client.rest import ApiException
 
-from .exceptions import AuthenticationError, NetworkError
+from .exceptions import AuthenticationError, NetworkError, ConfigurationError
 from .utils import ConfigManager
 
 logger = logging.getLogger(__name__)
 
 
-class TokenManager:
-    """Manages authentication tokens and refresh logic."""
-    
-    def __init__(self) -> None:
-        self.access_token: Optional[str] = None
-        self.refresh_token: Optional[str] = None
-        self.expires_at: Optional[datetime] = None
-    
-    def set_tokens(
-        self,
-        access_token: str,
-        refresh_token: Optional[str] = None,
-        expires_in: Optional[int] = None,
-    ) -> None:
-        """
-        Set authentication tokens.
-        
-        Args:
-            access_token: Access token
-            refresh_token: Refresh token
-            expires_in: Token expiration time in seconds
-        """
-        self.access_token = access_token
-        self.refresh_token = refresh_token
-        
-        if expires_in:
-            self.expires_at = datetime.now() + timedelta(seconds=expires_in)
-        else:
-            # Default to 1 hour if not specified
-            self.expires_at = datetime.now() + timedelta(hours=1)
-    
-    def is_expired(self) -> bool:
-        """Check if current token is expired."""
-        if not self.access_token or not self.expires_at:
-            return True
-        
-        # Consider token expired 5 minutes before actual expiration
-        return datetime.now() >= (self.expires_at - timedelta(minutes=5))
-    
-    def clear(self) -> None:
-        """Clear all tokens."""
-        self.access_token = None
-        self.refresh_token = None
-        self.expires_at = None
-
-
 class AuthManager:
     """
-    Manages authentication with the Upstream API.
-    
-    Handles token acquisition, refresh, and automatic re-authentication.
+    Manages authentication with the Upstream API using OpenAPI client.
     """
     
     def __init__(self, config: ConfigManager) -> None:
@@ -76,154 +29,123 @@ class AuthManager:
             config: Configuration manager instance
         """
         self.config = config
-        self.token_manager = TokenManager()
-        self.session = requests.Session()
-        self.session.timeout = config.timeout
+        self.configuration = Configuration(host=config.base_url)
+        self.api_client: Optional[ApiClient] = None
+        self.access_token: Optional[str] = None
+        self.token_expires_at: Optional[datetime] = None
+        
+        # Validate configuration
+        if not config.username or not config.password:
+            raise ConfigurationError("Username and password are required")
     
-    def authenticate(self) -> None:
+    def authenticate(self) -> bool:
         """
         Authenticate with the Upstream API.
         
+        Returns:
+            True if authentication successful
+            
         Raises:
             AuthenticationError: If authentication fails
         """
-        if not self.config.username or not self.config.password:
-            raise AuthenticationError("Username and password are required")
-        
-        auth_url = f"{self.config.base_url}/auth/login"
-        
-        auth_data = {
-            "username": self.config.username,
-            "password": self.config.password,
-        }
-        
         try:
-            response = self.session.post(auth_url, json=auth_data)
-            response.raise_for_status()
-            
-            auth_response = response.json()
-            
-            # Extract tokens from response
-            access_token = auth_response.get("access_token")
-            refresh_token = auth_response.get("refresh_token")
-            expires_in = auth_response.get("expires_in")
-            
-            if not access_token:
-                raise AuthenticationError("No access token received")
-            
-            self.token_manager.set_tokens(
-                access_token=access_token,
-                refresh_token=refresh_token,
-                expires_in=expires_in,
-            )
-            
-            logger.info("Successfully authenticated with Upstream API")
-            
-        except requests.exceptions.RequestException as e:
-            raise NetworkError(f"Authentication request failed: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 401:
+            with ApiClient(self.configuration) as api_client:
+                auth_api = AuthApi(api_client)
+                
+                # Attempt login
+                response = auth_api.login_api_v1_token_post(
+                    username=self.config.username,
+                    password=self.config.password,
+                    grant_type="password"
+                )
+                
+                # Store token information
+                self.access_token = response.access_token
+                self.configuration.access_token = response.access_token
+                
+                # Calculate expiration time (default to 1 hour if not provided)
+                expires_in = getattr(response, 'expires_in', 3600)
+                self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+                
+                logger.info("Successfully authenticated with Upstream API")
+                return True
+                
+        except ApiException as e:
+            if e.status == 401:
                 raise AuthenticationError("Invalid username or password")
+            elif e.status == 422:
+                raise AuthenticationError("Authentication request validation failed")
             else:
                 raise AuthenticationError(f"Authentication failed: {e}")
+        except Exception as e:
+            raise NetworkError(f"Authentication request failed: {e}")
     
-    def refresh_token(self) -> None:
+    def is_authenticated(self) -> bool:
         """
-        Refresh the authentication token.
+        Check if currently authenticated with a valid token.
         
+        Returns:
+            True if authenticated with valid token
+        """
+        if not self.access_token or not self.token_expires_at:
+            return False
+        
+        # Consider token expired if it expires within 5 minutes
+        buffer_time = timedelta(minutes=5)
+        return datetime.now() < (self.token_expires_at - buffer_time)
+    
+    def get_api_client(self) -> ApiClient:
+        """
+        Get authenticated API client.
+        
+        Returns:
+            Configured API client with authentication
+            
         Raises:
-            AuthenticationError: If token refresh fails
+            AuthenticationError: If not authenticated
         """
-        if not self.token_manager.refresh_token:
-            # No refresh token available, need to re-authenticate
-            self.authenticate()
-            return
+        if not self.is_authenticated():
+            if not self.authenticate():
+                raise AuthenticationError("Failed to authenticate")
         
-        refresh_url = f"{self.config.base_url}/auth/refresh"
-        
-        refresh_data = {
-            "refresh_token": self.token_manager.refresh_token,
-        }
-        
-        try:
-            response = self.session.post(refresh_url, json=refresh_data)
-            response.raise_for_status()
-            
-            refresh_response = response.json()
-            
-            access_token = refresh_response.get("access_token")
-            refresh_token = refresh_response.get("refresh_token")
-            expires_in = refresh_response.get("expires_in")
-            
-            if not access_token:
-                raise AuthenticationError("No access token received during refresh")
-            
-            self.token_manager.set_tokens(
-                access_token=access_token,
-                refresh_token=refresh_token or self.token_manager.refresh_token,
-                expires_in=expires_in,
-            )
-            
-            logger.info("Successfully refreshed authentication token")
-            
-        except requests.exceptions.RequestException as e:
-            # Token refresh failed, try full re-authentication
-            logger.warning(f"Token refresh failed: {e}. Attempting re-authentication.")
-            self.authenticate()
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 401:
-                # Refresh token expired, need to re-authenticate
-                logger.warning("Refresh token expired. Re-authenticating.")
-                self.authenticate()
-            else:
-                raise AuthenticationError(f"Token refresh failed: {e}")
+        return ApiClient(self.configuration)
     
     def get_headers(self) -> Dict[str, str]:
         """
-        Get authentication headers for API requests.
+        Get authentication headers for direct requests.
         
         Returns:
             Dictionary of headers including authorization
         """
-        # Check if token needs refresh
-        if self.token_manager.is_expired():
-            self.refresh_token()
-        
-        if not self.token_manager.access_token:
-            raise AuthenticationError("No valid access token available")
+        if not self.is_authenticated():
+            if not self.authenticate():
+                raise AuthenticationError("Failed to authenticate")
         
         return {
-            "Authorization": f"Bearer {self.token_manager.access_token}",
+            "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
     
-    def is_authenticated(self) -> bool:
+    def refresh_token(self) -> bool:
         """
-        Check if currently authenticated.
+        Refresh authentication token.
         
         Returns:
-            True if authenticated, False otherwise
+            True if refresh successful
         """
-        return (
-            self.token_manager.access_token is not None
-            and not self.token_manager.is_expired()
-        )
+        # For now, just re-authenticate
+        # TODO: Implement proper token refresh if supported by API
+        try:
+            return self.authenticate()
+        except Exception as e:
+            logger.warning(f"Token refresh failed: {e}")
+            return False
     
     def logout(self) -> None:
         """
         Logout and clear authentication tokens.
         """
-        # Optionally, call logout endpoint if available
-        logout_url = f"{self.config.base_url}/auth/logout"
-        
-        try:
-            headers = self.get_headers()
-            response = self.session.post(logout_url, headers=headers)
-            response.raise_for_status()
-            logger.info("Successfully logged out from Upstream API")
-        except Exception as e:
-            logger.warning(f"Logout request failed: {e}")
-        
-        # Clear tokens regardless of logout request result
-        self.token_manager.clear()
-        logger.info("Authentication tokens cleared")
+        self.access_token = None
+        self.token_expires_at = None
+        self.configuration.access_token = None
+        logger.info("Successfully logged out")

@@ -7,6 +7,7 @@ import json
 from typing import Dict, Any, Optional, Union
 from pathlib import Path
 import logging
+from datetime import datetime
 
 import yaml
 
@@ -369,3 +370,53 @@ def chunk_file(
             current_chunk_file.close()
     
     return chunk_files
+
+
+def get_logger(name: str) -> logging.Logger:
+    """
+    Get a logger instance with consistent formatting.
+
+    Args:
+        name: Logger name (typically __name__)
+        
+    Returns:
+        Configured logger instance
+    """
+    return logging.getLogger(name)
+
+
+def format_timestamp(timestamp: Optional[datetime]) -> Optional[str]:
+    """
+    Format datetime object to ISO 8601 string.
+
+    Args:
+        timestamp: Datetime object to format
+        
+    Returns:
+        ISO 8601 formatted string or None if input is None
+    """
+    if timestamp is None:
+        return None
+    return timestamp.isoformat()
+
+
+def parse_timestamp(timestamp_str: str) -> Optional[datetime]:
+    """
+    Parse ISO 8601 timestamp string to datetime object.
+
+    Args:
+        timestamp_str: ISO 8601 formatted timestamp string
+        
+    Returns:
+        Parsed datetime object or None if parsing fails
+    """
+    from dateutil.parser import parse
+    
+    if not timestamp_str:
+        return None
+    
+    try:
+        return parse(timestamp_str)
+    except (ValueError, TypeError) as e:
+        logger.warning(f"Failed to parse timestamp '{timestamp_str}': {e}")
+        return None

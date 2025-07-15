@@ -1,275 +1,265 @@
 """
-Campaign management for Upstream SDK.
+Campaign management module for the Upstream SDK using OpenAPI client.
+
+This module handles creation, retrieval, and management of environmental
+monitoring campaigns using the generated OpenAPI client.
 """
 
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass
+from typing import Optional
 from datetime import datetime
-import logging
 
-import requests
+from upstream.upstream_client.models.get_campaign_response import GetCampaignResponse
+from upstream.upstream_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
 
-from .exceptions import UpstreamError, ValidationError
-from .utils import ConfigManager
+from .upstream_client.api import CampaignsApi
+from .upstream_client.models import (
+    CampaignsIn,
+    CampaignCreateResponse,
+    CampaignUpdate
+)
+from .auth import AuthManager
+from .upstream_client.rest import ApiException
 
-logger = logging.getLogger(__name__)
+from .exceptions import APIError, ValidationError
+from .utils import get_logger
 
+logger = get_logger(__name__)
 
-@dataclass
-class Campaign:
-    """
-    Represents an Upstream campaign.
-    """
-    id: str
-    name: str
-    description: Optional[str] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    status: str = "active"
-    metadata: Optional[Dict[str, Any]] = None
-    
-    def __post_init__(self) -> None:
-        if self.metadata is None:
-            self.metadata = {}
 
 
 class CampaignManager:
-    """
-    Manages campaign operations for the Upstream API.
-    """
-    
-    def __init__(self, config: ConfigManager, auth_manager: Any) -> None:
-        """
-        Initialize campaign manager.
-        
+    """Manages campaign operations using the OpenAPI client."""
+
+    auth_manager: AuthManager
+    def __init__(self, auth_manager: AuthManager) -> None:
+        """Initialize campaign manager.
+
         Args:
-            config: Configuration manager instance
             auth_manager: Authentication manager instance
         """
-        self.config = config
-        self.auth = auth_manager
-        self.session = requests.Session()
-        self.session.timeout = config.timeout
-    
-    def create(
-        self,
-        name: str,
-        description: Optional[str] = None,
-        **kwargs: Any,
-    ) -> Campaign:
-        """
-        Create a new campaign.
-        
+        self.auth_manager = auth_manager
+
+    def create(self, name: str, description: str = "",
+               contact_name: Optional[str] = None,
+               contact_email: Optional[str] = None,
+               allocation: str = "TACC",
+               start_date: Optional[datetime] = None,
+               end_date: Optional[datetime] = None,
+               ) -> CampaignCreateResponse:
+        """Create a new campaign.
+
         Args:
             name: Campaign name
             description: Campaign description
-            **kwargs: Additional campaign parameters
-            
+            contact_name: Contact person name
+            contact_email: Contact email address
+            allocation: Resource allocation (defaults to "TACC")
+            start_date: Campaign start date
+            end_date: Campaign end date
+
         Returns:
-            Created Campaign instance
-            
+            Created Campaign object
+
         Raises:
             ValidationError: If campaign data is invalid
-            UpstreamError: If creation fails
+            APIError: If API request fails
         """
-        if not name or not name.strip():
-            raise ValidationError("Campaign name is required")
-        
-        campaign_data = {
-            "name": name.strip(),
-            "description": description,
-            **kwargs,
-        }
-        
-        # Remove None values
-        campaign_data = {k: v for k, v in campaign_data.items() if v is not None}
-        
-        url = f"{self.config.base_url}/campaigns"
-        headers = self.auth.get_headers()
-        
+        if not name.strip():
+            raise ValidationError("Campaign name cannot be empty", field="name")
+
+        # Set default dates if not provided
+        if start_date is None:
+            start_date = datetime.now()
+        if end_date is None:
+            end_date = datetime.now().replace(year=datetime.now().year + 1)
+
+        # Create campaign input model
+        campaign_input = CampaignsIn(
+            name=name.strip(),
+            description=description.strip() if description else "",
+            contact_name=contact_name,
+            contact_email=contact_email,
+            allocation=allocation,
+            start_date=start_date,
+            end_date=end_date
+        )
+
         try:
-            response = self.session.post(url, json=campaign_data, headers=headers)
-            response.raise_for_status()
-            
-            campaign_response = response.json()
-            
-            campaign = Campaign(
-                id=campaign_response["id"],
-                name=campaign_response["name"],
-                description=campaign_response.get("description"),
-                created_at=campaign_response.get("created_at"),
-                updated_at=campaign_response.get("updated_at"),
-                status=campaign_response.get("status", "active"),
-                metadata=campaign_response.get("metadata", {}),
-            )
-            
-            logger.info(f"Created campaign: {campaign.name} (ID: {campaign.id})")
-            return campaign
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to create campaign: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 400:
-                raise ValidationError(f"Invalid campaign data: {e}")
+            with self.auth_manager.get_api_client() as api_client:
+                campaigns_api = CampaignsApi(api_client)
+
+                response: CampaignCreateResponse = campaigns_api.create_campaign_api_v1_campaigns_post(
+                    campaigns_in=campaign_input
+                )
+
+                return response
+
+        except ApiException as e:
+            if e.status == 422:
+                raise ValidationError(f"Campaign validation failed: {e}")
             else:
-                raise UpstreamError(f"Campaign creation failed: {e}")
-    
-    def get(self, campaign_id: str) -> Campaign:
-        """
-        Get campaign by ID.
-        
+                raise APIError(f"Failed to create campaign: {e}", status_code=e.status)
+        except Exception as e:
+            raise APIError(f"Failed to create campaign: {e}")
+
+    def get(self, campaign_id: str) -> GetCampaignResponse:
+        """Get campaign by ID.
+
         Args:
             campaign_id: Campaign ID
-            
+
         Returns:
-            Campaign instance
-            
+            Campaign object
+
         Raises:
-            UpstreamError: If campaign not found or retrieval fails
+            APIError: If API request fails or campaign not found
         """
-        if not campaign_id:
-            raise ValidationError("Campaign ID is required")
-        
-        url = f"{self.config.base_url}/campaigns/{campaign_id}"
-        headers = self.auth.get_headers()
-        
         try:
-            response = self.session.get(url, headers=headers)
-            response.raise_for_status()
-            
-            campaign_data = response.json()
-            
-            return Campaign(
-                id=campaign_data["id"],
-                name=campaign_data["name"],
-                description=campaign_data.get("description"),
-                created_at=campaign_data.get("created_at"),
-                updated_at=campaign_data.get("updated_at"),
-                status=campaign_data.get("status", "active"),
-                metadata=campaign_data.get("metadata", {}),
-            )
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to retrieve campaign: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 404:
-                raise UpstreamError(f"Campaign not found: {campaign_id}")
+            campaign_id_int = int(campaign_id)
+
+            with self.auth_manager.get_api_client() as api_client:
+                campaigns_api = CampaignsApi(api_client)
+
+                response : GetCampaignResponse = campaigns_api.get_campaign_api_v1_campaigns_campaign_id_get(
+                    campaign_id=campaign_id_int
+                )
+                return response
+
+        except ValueError:
+            raise ValidationError(f"Invalid campaign ID format: {campaign_id}")
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Campaign not found: {campaign_id}", status_code=404)
             else:
-                raise UpstreamError(f"Campaign retrieval failed: {e}")
-    
-    def list(self, limit: int = 100, offset: int = 0) -> List[Campaign]:
-        """
-        List campaigns.
-        
+                raise APIError(f"Failed to get campaign: {e}", status_code=e.status)
+        except Exception as e:
+            raise APIError(f"Failed to get campaign: {e}")
+
+    def list(self, limit: int = 50, page: int = 1,
+             search: Optional[str] = None) -> ListCampaignsResponsePagination:
+        """List campaigns with optional filtering.
+
         Args:
             limit: Maximum number of campaigns to return
-            offset: Number of campaigns to skip
-            
+            page: Page number for pagination
+            search: Search term for campaign names/descriptions
+
         Returns:
-            List of Campaign instances
+            List of Campaign objects
+
+        Raises:
+            APIError: If API request fails
         """
-        url = f"{self.config.base_url}/campaigns"
-        headers = self.auth.get_headers()
-        params = {"limit": limit, "offset": offset}
-        
         try:
-            response = self.session.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            
-            campaigns_data = response.json()
-            
-            campaigns = []
-            for campaign_data in campaigns_data.get("campaigns", []):
-                campaign = Campaign(
-                    id=campaign_data["id"],
-                    name=campaign_data["name"],
-                    description=campaign_data.get("description"),
-                    created_at=campaign_data.get("created_at"),
-                    updated_at=campaign_data.get("updated_at"),
-                    status=campaign_data.get("status", "active"),
-                    metadata=campaign_data.get("metadata", {}),
+            with self.auth_manager.get_api_client() as api_client:
+                campaigns_api = CampaignsApi(api_client)
+                response : ListCampaignsResponsePagination = campaigns_api.list_campaigns_api_v1_campaigns_get(
+                    limit=limit,
+                    page=page,
                 )
-                campaigns.append(campaign)
-            
-            return campaigns
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to list campaigns: {e}")
-    
-    def update(self, campaign_id: str, **kwargs: Any) -> Campaign:
-        """
-        Update campaign.
-        
+                logger.info(f"Retrieved {response.total} campaigns")
+                return response
+
+        except ApiException as e:
+            raise APIError(f"Failed to list campaigns: {e}", status_code=e.status)
+        except Exception as e:
+            raise APIError(f"Failed to list campaigns: {e}")
+
+    def update(self, campaign_id: str, name: Optional[str] = None,
+               description: Optional[str] = None,
+               contact_name: Optional[str] = None,
+               contact_email: Optional[str] = None,
+               ) -> CampaignCreateResponse:
+        """Update an existing campaign.
+
         Args:
             campaign_id: Campaign ID
-            **kwargs: Campaign fields to update
-            
+            name: New campaign name
+            description: New campaign description
+            contact_name: New contact name
+            contact_email: New contact email
+
         Returns:
-            Updated Campaign instance
+            Updated Campaign object
+
+        Raises:
+            ValidationError: If update data is invalid
+            APIError: If API request fails
         """
-        if not campaign_id:
-            raise ValidationError("Campaign ID is required")
-        
-        # Remove None values
-        update_data = {k: v for k, v in kwargs.items() if v is not None}
-        
-        if not update_data:
-            raise ValidationError("No update data provided")
-        
-        url = f"{self.config.base_url}/campaigns/{campaign_id}"
-        headers = self.auth.get_headers()
-        
         try:
-            response = self.session.patch(url, json=update_data, headers=headers)
-            response.raise_for_status()
-            
-            campaign_data = response.json()
-            
-            return Campaign(
-                id=campaign_data["id"],
-                name=campaign_data["name"],
-                description=campaign_data.get("description"),
-                created_at=campaign_data.get("created_at"),
-                updated_at=campaign_data.get("updated_at"),
-                status=campaign_data.get("status", "active"),
-                metadata=campaign_data.get("metadata", {}),
-            )
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to update campaign: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 404:
-                raise UpstreamError(f"Campaign not found: {campaign_id}")
+            campaign_id_int = int(campaign_id)
+
+            # Build update data
+            update_data = {}
+            if name is not None:
+                if not name.strip():
+                    raise ValidationError("Campaign name cannot be empty", field="name")
+                update_data['name'] = name.strip()
+            if description is not None:
+                update_data['description'] = description.strip()
+            if contact_name is not None:
+                update_data['contact_name'] = contact_name
+            if contact_email is not None:
+                update_data['contact_email'] = contact_email
+
+            if not update_data:
+                raise ValidationError("No fields to update provided")
+
+            campaign_update = CampaignUpdate(**update_data)
+
+            with self.auth_manager.get_api_client() as api_client:
+                campaigns_api = CampaignsApi(api_client)
+
+                response = campaigns_api.partial_update_campaign_api_v1_campaigns_campaign_id_patch_with_http_info(
+                    campaign_id=campaign_id_int,
+                    campaign_update=campaign_update
+                )
+
+                return response
+
+        except ValueError:
+            raise ValidationError(f"Invalid campaign ID format: {campaign_id}")
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Campaign not found: {campaign_id}", status_code=404)
+            elif e.status == 422:
+                raise ValidationError(f"Campaign validation failed: {e}")
             else:
-                raise UpstreamError(f"Campaign update failed: {e}")
-    
+                raise APIError(f"Failed to update campaign: {e}", status_code=e.status)
+        except Exception as e:
+            raise APIError(f"Failed to update campaign: {e}")
+
     def delete(self, campaign_id: str) -> bool:
-        """
-        Delete campaign.
-        
+        """Delete a campaign.
+
         Args:
             campaign_id: Campaign ID
-            
+
         Returns:
-            True if deletion successful
+            True if successful
+
+        Raises:
+            APIError: If API request fails
         """
-        if not campaign_id:
-            raise ValidationError("Campaign ID is required")
-        
-        url = f"{self.config.base_url}/campaigns/{campaign_id}"
-        headers = self.auth.get_headers()
-        
         try:
-            response = self.session.delete(url, headers=headers)
-            response.raise_for_status()
-            
-            logger.info(f"Deleted campaign: {campaign_id}")
-            return True
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to delete campaign: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 404:
-                raise UpstreamError(f"Campaign not found: {campaign_id}")
+            campaign_id_int = int(campaign_id)
+
+            with self.auth_manager.get_api_client() as api_client:
+                campaigns_api = CampaignsApi(api_client)
+
+                campaigns_api.delete_campaign_api_v1_campaigns_campaign_id_delete(
+                    campaign_id=campaign_id_int
+                )
+
+                logger.info(f"Deleted campaign: {campaign_id}")
+                return True
+
+        except ValueError:
+            raise ValidationError(f"Invalid campaign ID format: {campaign_id}")
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Campaign not found: {campaign_id}", status_code=404)
             else:
-                raise UpstreamError(f"Campaign deletion failed: {e}")
+                raise APIError(f"Failed to delete campaign: {e}", status_code=e.status)
+        except Exception as e:
+            raise APIError(f"Failed to delete campaign: {e}")

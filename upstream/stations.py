@@ -1,62 +1,44 @@
 """
-Station management for Upstream SDK.
+Station management module for the Upstream SDK using OpenAPI client.
+
+This module handles creation, retrieval, and management of monitoring stations
+using the generated OpenAPI client.
 """
 
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass
-from datetime import datetime
-import logging
+from typing import Optional, Any
 
-import requests
+from upstream.upstream_client.models.campaign_create_response import CampaignCreateResponse
 
-from .exceptions import UpstreamError, ValidationError
-from .utils import ConfigManager
+from .upstream_client.api import StationsApi
+from .upstream_client.models import (
+    StationCreate,
+    StationUpdate,
+    GetStationResponse,
+    StationCreateResponse,
+    ListStationsResponsePagination
+)
+from .upstream_client.rest import ApiException
 
-logger = logging.getLogger(__name__)
+from .exceptions import APIError, ValidationError
+from .utils import get_logger
 
-
-@dataclass
-class Station:
-    """
-    Represents an Upstream monitoring station.
-    """
-    id: str
-    campaign_id: str
-    name: str
-    latitude: float
-    longitude: float
-    description: Optional[str] = None
-    contact_name: Optional[str] = None
-    contact_email: Optional[str] = None
-    altitude: Optional[float] = None
-    created_at: Optional[datetime] = None
-    updated_at: Optional[datetime] = None
-    status: str = "active"
-    metadata: Optional[Dict[str, Any]] = None
-    
-    def __post_init__(self) -> None:
-        if self.metadata is None:
-            self.metadata = {}
+logger = get_logger(__name__)
 
 
 class StationManager:
     """
-    Manages station operations for the Upstream API.
+    Manages station operations using the OpenAPI client.
     """
-    
-    def __init__(self, config: ConfigManager, auth_manager: Any) -> None:
+
+    def __init__(self, auth_manager) -> None:
         """
         Initialize station manager.
-        
+
         Args:
-            config: Configuration manager instance
             auth_manager: Authentication manager instance
         """
-        self.config = config
-        self.auth = auth_manager
-        self.session = requests.Session()
-        self.session.timeout = config.timeout
-    
+        self.auth_manager = auth_manager
+
     def create(
         self,
         campaign_id: str,
@@ -68,10 +50,10 @@ class StationManager:
         contact_email: Optional[str] = None,
         altitude: Optional[float] = None,
         **kwargs: Any,
-    ) -> Station:
+    ) -> CampaignCreateResponse:
         """
         Create a new station.
-        
+
         Args:
             campaign_id: Parent campaign ID
             name: Station name
@@ -82,277 +64,263 @@ class StationManager:
             contact_email: Contact email
             altitude: Station altitude in meters
             **kwargs: Additional station parameters
-            
+
         Returns:
             Created Station instance
-            
+
         Raises:
             ValidationError: If station data is invalid
-            UpstreamError: If creation fails
+            APIError: If creation fails
         """
         # Validate required fields
         if not campaign_id:
-            raise ValidationError("Campaign ID is required")
+            raise ValidationError("Campaign ID is required", field="campaign_id")
         if not name or not name.strip():
-            raise ValidationError("Station name is required")
+            raise ValidationError("Station name is required", field="name")
         if not isinstance(latitude, (int, float)) or not (-90 <= latitude <= 90):
-            raise ValidationError("Latitude must be between -90 and 90")
+            raise ValidationError("Latitude must be between -90 and 90", field="latitude")
         if not isinstance(longitude, (int, float)) or not (-180 <= longitude <= 180):
-            raise ValidationError("Longitude must be between -180 and 180")
-        
+            raise ValidationError("Longitude must be between -180 and 180", field="longitude")
+
         # Validate email if provided
         if contact_email and "@" not in contact_email:
-            raise ValidationError("Invalid email format")
-        
-        station_data = {
-            "campaign_id": campaign_id,
-            "name": name.strip(),
-            "latitude": latitude,
-            "longitude": longitude,
-            "description": description,
-            "contact_name": contact_name,
-            "contact_email": contact_email,
-            "altitude": altitude,
-            **kwargs,
-        }
-        
-        # Remove None values
-        station_data = {k: v for k, v in station_data.items() if v is not None}
-        
-        url = f"{self.config.base_url}/stations"
-        headers = self.auth.get_headers()
-        
+            raise ValidationError("Invalid email format", field="contact_email")
+
+        # Create station input model
+        station_input = StationCreate(
+            name=name.strip(),
+            latitude=latitude,
+            longitude=longitude,
+            description=description,
+            contact_name=contact_name,
+            contact_email=contact_email,
+            altitude=altitude
+        )
+
         try:
-            response = self.session.post(url, json=station_data, headers=headers)
-            response.raise_for_status()
-            
-            station_response = response.json()
-            
-            station = Station(
-                id=station_response["id"],
-                campaign_id=station_response["campaign_id"],
-                name=station_response["name"],
-                latitude=station_response["latitude"],
-                longitude=station_response["longitude"],
-                description=station_response.get("description"),
-                contact_name=station_response.get("contact_name"),
-                contact_email=station_response.get("contact_email"),
-                altitude=station_response.get("altitude"),
-                created_at=station_response.get("created_at"),
-                updated_at=station_response.get("updated_at"),
-                status=station_response.get("status", "active"),
-                metadata=station_response.get("metadata", {}),
-            )
-            
-            logger.info(f"Created station: {station.name} (ID: {station.id})")
-            return station
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to create station: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 400:
-                raise ValidationError(f"Invalid station data: {e}")
+            campaign_id_int = int(campaign_id)
+
+            with self.auth_manager.get_api_client() as api_client:
+                stations_api = StationsApi(api_client)
+
+                response = stations_api.create_station_api_v1_campaigns_campaign_id_stations_post(
+                    campaign_id=campaign_id_int,
+                    station_create=station_input
+                )
+                return response
+
+        except ValueError as exc:
+            raise ValidationError(f"Invalid campaign ID format: {campaign_id}") from exc
+        except ApiException as e:
+            if e.status == 422:
+                raise ValidationError(f"Station validation failed: {e}") from e
             else:
-                raise UpstreamError(f"Station creation failed: {e}")
-    
-    def get(self, station_id: str) -> Station:
+                raise APIError(f"Failed to create station: {e}", status_code=e.status) from e
+        except Exception as e:
+            raise APIError(f"Failed to create station: {e}") from e
+
+    def get(self, station_id: str, campaign_id: str) -> GetStationResponse:
         """
         Get station by ID.
-        
+
         Args:
             station_id: Station ID
-            
+            campaign_id: Campaign ID
+
         Returns:
             Station instance
-            
+
         Raises:
-            UpstreamError: If station not found or retrieval fails
+            ValidationError: If IDs are invalid
+            APIError: If station not found or retrieval fails
         """
         if not station_id:
-            raise ValidationError("Station ID is required")
-        
-        url = f"{self.config.base_url}/stations/{station_id}"
-        headers = self.auth.get_headers()
-        
+            raise ValidationError("Station ID is required", field="station_id")
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
         try:
-            response = self.session.get(url, headers=headers)
-            response.raise_for_status()
-            
-            station_data = response.json()
-            
-            return Station(
-                id=station_data["id"],
-                campaign_id=station_data["campaign_id"],
-                name=station_data["name"],
-                latitude=station_data["latitude"],
-                longitude=station_data["longitude"],
-                description=station_data.get("description"),
-                contact_name=station_data.get("contact_name"),
-                contact_email=station_data.get("contact_email"),
-                altitude=station_data.get("altitude"),
-                created_at=station_data.get("created_at"),
-                updated_at=station_data.get("updated_at"),
-                status=station_data.get("status", "active"),
-                metadata=station_data.get("metadata", {}),
-            )
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to retrieve station: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 404:
-                raise UpstreamError(f"Station not found: {station_id}")
+            station_id_int = int(station_id)
+            campaign_id_int = int(campaign_id)
+
+            with self.auth_manager.get_api_client() as api_client:
+                stations_api = StationsApi(api_client)
+
+                response = stations_api.get_station_api_v1_campaigns_campaign_id_stations_station_id_get(
+                    station_id=station_id_int,
+                    campaign_id=campaign_id_int
+                )
+
+                return response
+
+        except ValueError as exc:
+            raise ValidationError(f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}") from exc
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Station not found: {station_id}", status_code=404)
             else:
-                raise UpstreamError(f"Station retrieval failed: {e}")
-    
+                raise APIError(f"Failed to get station: {e}", status_code=e.status)
+        except Exception as e:
+            raise APIError(f"Failed to get station: {e}")
+
     def list(
         self,
-        campaign_id: Optional[str] = None,
+        campaign_id: str,
         limit: int = 100,
-        offset: int = 0,
-    ) -> List[Station]:
+        page: int = 1,
+    ) -> ListStationsResponsePagination:
         """
-        List stations.
-        
+        List stations for a campaign.
+
         Args:
-            campaign_id: Filter by campaign ID
+            campaign_id: Campaign ID to filter by
             limit: Maximum number of stations to return
-            offset: Number of stations to skip
-            
+            page: Page number for pagination
+
         Returns:
             List of Station instances
+
+        Raises:
+            ValidationError: If campaign_id is invalid
+            APIError: If listing fails
         """
-        url = f"{self.config.base_url}/stations"
-        headers = self.auth.get_headers()
-        params = {"limit": limit, "offset": offset}
-        
-        if campaign_id:
-            params["campaign_id"] = campaign_id
-        
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
         try:
-            response = self.session.get(url, headers=headers, params=params)
-            response.raise_for_status()
-            
-            stations_data = response.json()
-            
-            stations = []
-            for station_data in stations_data.get("stations", []):
-                station = Station(
-                    id=station_data["id"],
-                    campaign_id=station_data["campaign_id"],
-                    name=station_data["name"],
-                    latitude=station_data["latitude"],
-                    longitude=station_data["longitude"],
-                    description=station_data.get("description"),
-                    contact_name=station_data.get("contact_name"),
-                    contact_email=station_data.get("contact_email"),
-                    altitude=station_data.get("altitude"),
-                    created_at=station_data.get("created_at"),
-                    updated_at=station_data.get("updated_at"),
-                    status=station_data.get("status", "active"),
-                    metadata=station_data.get("metadata", {}),
+            campaign_id_int = int(campaign_id)
+
+            with self.auth_manager.get_api_client() as api_client:
+                stations_api = StationsApi(api_client)
+
+                response = stations_api.list_stations_api_v1_campaigns_campaign_id_stations_get(
+                    campaign_id=campaign_id_int,
+                    limit=limit,
+                    page=page
                 )
-                stations.append(station)
-            
-            return stations
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to list stations: {e}")
-    
-    def update(self, station_id: str, **kwargs: Any) -> Station:
+
+                return response
+
+        except ValueError as exc:
+            raise ValidationError(f"Invalid campaign ID format: {campaign_id}") from exc
+        except ApiException as e:
+            raise APIError(f"Failed to list stations: {e}", status_code=e.status)
+        except Exception as e:
+            raise APIError(f"Failed to list stations: {e}")
+
+    def update(self, station_id: str, campaign_id: str, **kwargs: Any) -> StationCreateResponse:
         """
         Update station.
-        
+
         Args:
             station_id: Station ID
+            campaign_id: Campaign ID
             **kwargs: Station fields to update
-            
+
         Returns:
             Updated Station instance
+
+        Raises:
+            ValidationError: If IDs are invalid or no update data provided
+            APIError: If update fails
         """
         if not station_id:
-            raise ValidationError("Station ID is required")
-        
+            raise ValidationError("Station ID is required", field="station_id")
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
         # Remove None values
         update_data = {k: v for k, v in kwargs.items() if v is not None}
-        
+
         if not update_data:
             raise ValidationError("No update data provided")
-        
+
         # Validate coordinates if provided
         if "latitude" in update_data:
             lat = update_data["latitude"]
             if not isinstance(lat, (int, float)) or not (-90 <= lat <= 90):
-                raise ValidationError("Latitude must be between -90 and 90")
-        
+                raise ValidationError("Latitude must be between -90 and 90", field="latitude")
+
         if "longitude" in update_data:
             lon = update_data["longitude"]
             if not isinstance(lon, (int, float)) or not (-180 <= lon <= 180):
-                raise ValidationError("Longitude must be between -180 and 180")
-        
+                raise ValidationError("Longitude must be between -180 and 180", field="longitude")
+
         # Validate email if provided
         if "contact_email" in update_data and "@" not in update_data["contact_email"]:
-            raise ValidationError("Invalid email format")
-        
-        url = f"{self.config.base_url}/stations/{station_id}"
-        headers = self.auth.get_headers()
-        
+            raise ValidationError("Invalid email format", field="contact_email")
+
         try:
-            response = self.session.patch(url, json=update_data, headers=headers)
-            response.raise_for_status()
-            
-            station_data = response.json()
-            
-            return Station(
-                id=station_data["id"],
-                campaign_id=station_data["campaign_id"],
-                name=station_data["name"],
-                latitude=station_data["latitude"],
-                longitude=station_data["longitude"],
-                description=station_data.get("description"),
-                contact_name=station_data.get("contact_name"),
-                contact_email=station_data.get("contact_email"),
-                altitude=station_data.get("altitude"),
-                created_at=station_data.get("created_at"),
-                updated_at=station_data.get("updated_at"),
-                status=station_data.get("status", "active"),
-                metadata=station_data.get("metadata", {}),
-            )
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to update station: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 404:
-                raise UpstreamError(f"Station not found: {station_id}")
+            station_id_int = int(station_id)
+            campaign_id_int = int(campaign_id)
+
+            station_update = StationUpdate(**update_data)
+
+            with self.auth_manager.get_api_client() as api_client:
+                stations_api = StationsApi(api_client)
+
+                response = stations_api.partial_update_station_api_v1_campaigns_campaign_id_stations_station_id_patch(
+                    campaign_id=campaign_id_int,
+                    station_id=station_id_int,
+                    station_update=station_update
+                )
+
+                return response
+
+        except ValueError as exc:
+            raise ValidationError(f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}") from exc
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Station not found: {station_id}", status_code=404) from e
+            elif e.status == 422:
+                raise ValidationError(f"Station validation failed: {e}") from e
             else:
-                raise UpstreamError(f"Station update failed: {e}")
-    
-    def delete(self, station_id: str) -> bool:
+                raise APIError(f"Failed to update station: {e}", status_code=e.status) from e
+        except Exception as e:
+            raise APIError(f"Failed to update station: {e}") from e
+
+    def delete(self, station_id: str, campaign_id: str) -> bool:
         """
         Delete station.
-        
+
         Args:
             station_id: Station ID
-            
+            campaign_id: Campaign ID
+
         Returns:
             True if deletion successful
+
+        Raises:
+            ValidationError: If IDs are invalid
+            APIError: If deletion fails
         """
         if not station_id:
-            raise ValidationError("Station ID is required")
-        
-        url = f"{self.config.base_url}/stations/{station_id}"
-        headers = self.auth.get_headers()
-        
+            raise ValidationError("Station ID is required", field="station_id")
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
         try:
-            response = self.session.delete(url, headers=headers)
-            response.raise_for_status()
-            
-            logger.info(f"Deleted station: {station_id}")
-            return True
-            
-        except requests.exceptions.RequestException as e:
-            raise UpstreamError(f"Failed to delete station: {e}")
-        except requests.exceptions.HTTPError as e:
-            if response.status_code == 404:
-                raise UpstreamError(f"Station not found: {station_id}")
+            station_id_int = int(station_id)
+            campaign_id_int = int(campaign_id)
+
+            with self.auth_manager.get_api_client() as api_client:
+                stations_api = StationsApi(api_client)
+
+                # Note: The OpenAPI spec shows delete_sensor method, but this appears to be
+                # for deleting stations based on the endpoint path structure
+                stations_api.delete_sensor_api_v1_campaigns_campaign_id_stations_delete(
+                    campaign_id=campaign_id_int
+                )
+
+                logger.info(f"Deleted station: {station_id}")
+                return True
+
+        except ValueError as exc:
+            raise ValidationError(f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}") from exc
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Station not found: {station_id}", status_code=404)
             else:
-                raise UpstreamError(f"Station deletion failed: {e}")
+                raise APIError(f"Failed to delete station: {e}", status_code=e.status)
+        except Exception as e:
+            raise APIError(f"Failed to delete station: {e}")

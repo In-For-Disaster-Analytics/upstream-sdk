@@ -1,5 +1,7 @@
 """
-Data handling and upload functionality for Upstream SDK.
+Data handling and upload functionality for Upstream SDK using OpenAPI client.
+
+This module handles data validation and upload operations using the generated OpenAPI client.
 """
 
 import csv
@@ -8,13 +10,13 @@ from typing import Dict, Any, List, Optional, Union, Iterator
 from pathlib import Path
 import logging
 
-import requests
-import pandas as pd
+from upstream_client.api import UploadfileCsvApi
+from upstream_client.rest import ApiException
 
 from .exceptions import ValidationError, UploadError, APIError
-from .utils import ConfigManager, validate_file_size, chunk_file
+from .utils import ConfigManager, validate_file_size, chunk_file, get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger(__name__)
 
 
 class DataValidator:
@@ -115,7 +117,6 @@ class DataValidator:
                 timestamp = measurement['collectiontime']
                 if not isinstance(timestamp, str):
                     errors.append(f"Row {i+1}: 'collectiontime' must be a string")
-                # Additional timestamp format validation could be added here
         
         if errors:
             raise ValidationError(f"Measurement data validation failed: {'; '.join(errors)}")
@@ -137,6 +138,9 @@ class DataValidator:
             
         Returns:
             Validation result dictionary
+            
+        Raises:
+            ValidationError: If file is invalid
         """
         file_path = Path(file_path)
         
@@ -166,7 +170,7 @@ class DataValidator:
 
 class DataUploader:
     """
-    Handles data upload operations for Upstream API.
+    Handles data upload operations using the OpenAPI client.
     """
     
     def __init__(self, auth_manager) -> None:
@@ -177,7 +181,6 @@ class DataUploader:
             auth_manager: Authentication manager instance
         """
         self.auth_manager = auth_manager
-        self.base_url = auth_manager.config.base_url
         self.validator = DataValidator(auth_manager.config)
     
     def upload_csv_data(self, 
@@ -188,7 +191,7 @@ class DataUploader:
                        validate_data: bool = True,
                        **kwargs) -> Dict[str, Any]:
         """
-        Upload sensor data from CSV files.
+        Upload sensor and measurement data from CSV files using OpenAPI client.
         
         Args:
             campaign_id: Campaign ID
@@ -200,15 +203,19 @@ class DataUploader:
             
         Returns:
             Upload result dictionary
+            
+        Raises:
+            ValidationError: If data validation fails
+            UploadError: If upload fails
         """
         sensors_file = Path(sensors_file)
         measurements_file = Path(measurements_file)
         
         # Validate files exist
         if not sensors_file.exists():
-            raise ValidationError(f"Sensors file not found: {sensors_file}")
+            raise ValidationError(f"Sensors file not found: {sensors_file}", field="sensors_file")
         if not measurements_file.exists():
-            raise ValidationError(f"Measurements file not found: {measurements_file}")
+            raise ValidationError(f"Measurements file not found: {measurements_file}", field="measurements_file")
         
         # Validate data format if requested
         if validate_data:
@@ -218,183 +225,134 @@ class DataUploader:
             logger.info("Validating measurement data format...")
             self.validator.validate_csv_file(measurements_file, 'measurements')
         
-        # Upload files
+        # Upload files using OpenAPI client
         try:
-            # First upload sensors
-            sensors_result = self._upload_file(
-                campaign_id=campaign_id,
-                station_id=station_id,
-                file_path=sensors_file,
-                file_type='sensors',
-                **kwargs
-            )
+            campaign_id_int = int(campaign_id)
+            station_id_int = int(station_id)
             
-            # Then upload measurements
-            measurements_result = self._upload_file(
-                campaign_id=campaign_id,
-                station_id=station_id,
-                file_path=measurements_file,
-                file_type='measurements',
-                **kwargs
-            )
+            # Read files as bytes for upload
+            with open(sensors_file, 'rb') as sf, open(measurements_file, 'rb') as mf:
+                sensors_data = sf.read()
+                measurements_data = mf.read()
             
-            return {
-                'success': True,
-                'sensors_result': sensors_result,
-                'measurements_result': measurements_result,
-                'message': 'Data uploaded successfully'
-            }
-            
+            with self.auth_manager.get_api_client() as api_client:
+                upload_api = UploadfileCsvApi(api_client)
+                
+                response = upload_api.post_sensor_and_measurement_api_v1_uploadfile_csv_campaign_campaign_id_station_station_id_sensor_post(
+                    campaign_id=campaign_id_int,
+                    station_id=station_id_int,
+                    upload_file_sensors=sensors_data,
+                    upload_file_measurements=measurements_data
+                )
+                
+                logger.info(f"Successfully uploaded data for campaign {campaign_id}, station {station_id}")
+                
+                return {
+                    'success': True,
+                    'campaign_id': campaign_id,
+                    'station_id': station_id,
+                    'sensors_file': str(sensors_file),
+                    'measurements_file': str(measurements_file),
+                    'response': response,
+                    'message': 'Data uploaded successfully'
+                }
+                
+        except ValueError:
+            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}")
+        except ApiException as e:
+            if e.status == 422:
+                raise ValidationError(f"Data validation failed: {e}")
+            else:
+                raise UploadError(f"Failed to upload data: {e}", status_code=e.status)
         except Exception as e:
             logger.error(f"Data upload failed: {e}")
             raise UploadError(f"Failed to upload data: {e}")
     
-    def upload_measurements(self, 
-                          campaign_id: str,
-                          station_id: str,
-                          data: List[Dict[str, Any]],
-                          validate_data: bool = True,
-                          **kwargs) -> Dict[str, Any]:
+    def upload_chunked_csv_data(self, 
+                               campaign_id: str,
+                               station_id: str,
+                               sensors_file: Union[str, Path],
+                               measurements_file: Union[str, Path],
+                               validate_data: bool = True,
+                               **kwargs) -> Dict[str, Any]:
         """
-        Upload measurement data directly.
+        Upload large CSV files in chunks.
         
         Args:
             campaign_id: Campaign ID
             station_id: Station ID
-            data: List of measurement dictionaries
+            sensors_file: Path to sensors CSV file
+            measurements_file: Path to measurements CSV file
             validate_data: Whether to validate data before upload
             **kwargs: Additional upload parameters
             
         Returns:
             Upload result dictionary
+            
+        Raises:
+            ValidationError: If data validation fails
+            UploadError: If upload fails
         """
-        if validate_data:
-            logger.info("Validating measurement data...")
-            self.validator.validate_measurements_data(data)
+        sensors_file = Path(sensors_file)
+        measurements_file = Path(measurements_file)
         
-        try:
-            # Prepare payload
-            payload = {
-                'campaign_id': campaign_id,
-                'station_id': station_id,
-                'measurements': data,
-                **kwargs
-            }
-            
-            # Make API request
-            response = requests.post(
-                f"{self.base_url}/measurements",
-                json=payload,
-                headers=self.auth_manager.get_headers(),
-                timeout=self.auth_manager.config.timeout
-            )
-            response.raise_for_status()
-            
-            result = response.json()
-            
-            logger.info(f"Successfully uploaded {len(data)} measurements")
-            return {
-                'success': True,
-                'upload_id': result.get('upload_id'),
-                'measurements_processed': len(data),
-                'message': 'Measurements uploaded successfully'
-            }
-            
-        except requests.exceptions.RequestException as e:
-            logger.error(f"Measurement upload failed: {e}")
-            raise UploadError(f"Failed to upload measurements: {e}")
-    
-    def _upload_file(self, 
-                    campaign_id: str,
-                    station_id: str,
-                    file_path: Path,
-                    file_type: str,
-                    **kwargs) -> Dict[str, Any]:
-        """
-        Upload a single file to the API.
+        # Validate files exist
+        if not sensors_file.exists():
+            raise ValidationError(f"Sensors file not found: {sensors_file}", field="sensors_file")
+        if not measurements_file.exists():
+            raise ValidationError(f"Measurements file not found: {measurements_file}", field="measurements_file")
         
-        Args:
-            campaign_id: Campaign ID
-            station_id: Station ID
-            file_path: Path to file
-            file_type: Type of file ('sensors' or 'measurements')
-            **kwargs: Additional parameters
-            
-        Returns:
-            Upload result dictionary
-        """
-        # Check if file needs to be chunked
-        if not validate_file_size(file_path, self.auth_manager.config.max_chunk_size_mb):
-            return self._upload_chunked_file(campaign_id, station_id, file_path, file_type, **kwargs)
+        # Check if files need chunking
+        sensors_needs_chunking = not validate_file_size(sensors_file, self.auth_manager.config.max_chunk_size_mb)
+        measurements_needs_chunking = not validate_file_size(measurements_file, self.auth_manager.config.max_chunk_size_mb)
         
-        # Upload single file
-        try:
-            with open(file_path, 'rb') as f:
-                files = {'file': (file_path.name, f, 'text/csv')}
-                data = {
-                    'campaign_id': campaign_id,
-                    'station_id': station_id,
-                    'file_type': file_type,
-                    **kwargs
-                }
-                
-                response = requests.post(
-                    f"{self.base_url}/upload",
-                    files=files,
-                    data=data,
-                    headers=self.auth_manager.get_headers(),
-                    timeout=self.auth_manager.config.timeout
-                )
-                response.raise_for_status()
-                
-                result = response.json()
-                
-                logger.info(f"Successfully uploaded {file_type} file: {file_path.name}")
-                return result
-                
-        except Exception as e:
-            raise UploadError(f"Failed to upload {file_type} file: {e}")
-    
-    def _upload_chunked_file(self, 
-                           campaign_id: str,
-                           station_id: str,
-                           file_path: Path,
-                           file_type: str,
-                           **kwargs) -> Dict[str, Any]:
-        """
-        Upload large file in chunks.
+        if not sensors_needs_chunking and not measurements_needs_chunking:
+            # Files are small enough, use regular upload
+            return self.upload_csv_data(campaign_id, station_id, sensors_file, measurements_file, validate_data, **kwargs)
         
-        Args:
-            campaign_id: Campaign ID
-            station_id: Station ID
-            file_path: Path to file
-            file_type: Type of file
-            **kwargs: Additional parameters
-            
-        Returns:
-            Upload result dictionary
-        """
-        logger.info(f"Chunking large file: {file_path.name}")
-        
-        # Split file into chunks
-        chunk_files = chunk_file(
-            file_path,
-            chunk_size=self.auth_manager.config.chunk_size,
-            max_chunk_size_mb=self.auth_manager.config.max_chunk_size_mb
-        )
-        
+        # Handle chunking for large files
         upload_results = []
         
         try:
-            for chunk_file_path in chunk_files:
-                chunk_result = self._upload_file(
-                    campaign_id=campaign_id,
-                    station_id=station_id,
-                    file_path=Path(chunk_file_path),
-                    file_type=file_type,
-                    **kwargs
+            # Chunk sensors file if needed
+            if sensors_needs_chunking:
+                logger.info(f"Chunking large sensors file: {sensors_file.name}")
+                sensors_chunks = chunk_file(
+                    sensors_file,
+                    chunk_size=self.auth_manager.config.chunk_size,
+                    max_chunk_size_mb=self.auth_manager.config.max_chunk_size_mb
                 )
-                upload_results.append(chunk_result)
+            else:
+                sensors_chunks = [str(sensors_file)]
+            
+            # Chunk measurements file if needed
+            if measurements_needs_chunking:
+                logger.info(f"Chunking large measurements file: {measurements_file.name}")
+                measurements_chunks = chunk_file(
+                    measurements_file,
+                    chunk_size=self.auth_manager.config.chunk_size,
+                    max_chunk_size_mb=self.auth_manager.config.max_chunk_size_mb
+                )
+            else:
+                measurements_chunks = [str(measurements_file)]
+            
+            # Upload each combination of chunks
+            for i, sensors_chunk in enumerate(sensors_chunks):
+                for j, measurements_chunk in enumerate(measurements_chunks):
+                    try:
+                        result = self.upload_csv_data(
+                            campaign_id=campaign_id,
+                            station_id=station_id,
+                            sensors_file=sensors_chunk,
+                            measurements_file=measurements_chunk,
+                            validate_data=validate_data and i == 0 and j == 0,  # Only validate first chunk
+                            **kwargs
+                        )
+                        upload_results.append(result)
+                        
+                    except Exception as e:
+                        logger.error(f"Failed to upload chunk {i+1}/{j+1}: {e}")
+                        raise UploadError(f"Failed to upload chunk {i+1}/{j+1}: {e}")
             
             return {
                 'success': True,
@@ -405,68 +363,96 @@ class DataUploader:
             
         finally:
             # Clean up temporary chunk files
-            for chunk_file_path in chunk_files:
-                try:
-                    Path(chunk_file_path).unlink()
-                except Exception as e:
-                    logger.warning(f"Failed to delete chunk file {chunk_file_path}: {e}")
+            if sensors_needs_chunking:
+                for chunk_file_path in sensors_chunks:
+                    if chunk_file_path != str(sensors_file):  # Don't delete original file
+                        try:
+                            Path(chunk_file_path).unlink()
+                        except Exception as e:
+                            logger.warning(f"Failed to delete chunk file {chunk_file_path}: {e}")
+            
+            if measurements_needs_chunking:
+                for chunk_file_path in measurements_chunks:
+                    if chunk_file_path != str(measurements_file):  # Don't delete original file
+                        try:
+                            Path(chunk_file_path).unlink()
+                        except Exception as e:
+                            logger.warning(f"Failed to delete chunk file {chunk_file_path}: {e}")
     
-    def get_upload_status(self, upload_id: str) -> Dict[str, Any]:
+    def validate_files(self, 
+                      sensors_file: Union[str, Path],
+                      measurements_file: Union[str, Path]) -> Dict[str, Any]:
         """
-        Get status of a data upload.
+        Validate CSV files without uploading.
         
         Args:
-            upload_id: Upload ID
+            sensors_file: Path to sensors CSV file
+            measurements_file: Path to measurements CSV file
             
         Returns:
-            Upload status dictionary
+            Validation result dictionary
+            
+        Raises:
+            ValidationError: If validation fails
         """
-        try:
-            response = requests.get(
-                f"{self.base_url}/uploads/{upload_id}",
-                headers=self.auth_manager.get_headers(),
-                timeout=self.auth_manager.config.timeout
-            )
-            response.raise_for_status()
-            
-            return response.json()
-            
-        except requests.exceptions.RequestException as e:
-            raise APIError(f"Failed to get upload status: {e}")
+        sensors_file = Path(sensors_file)
+        measurements_file = Path(measurements_file)
+        
+        # Validate files exist
+        if not sensors_file.exists():
+            raise ValidationError(f"Sensors file not found: {sensors_file}", field="sensors_file")
+        if not measurements_file.exists():
+            raise ValidationError(f"Measurements file not found: {measurements_file}", field="measurements_file")
+        
+        # Validate data format
+        logger.info("Validating sensor data format...")
+        sensors_result = self.validator.validate_csv_file(sensors_file, 'sensors')
+        
+        logger.info("Validating measurement data format...")
+        measurements_result = self.validator.validate_csv_file(measurements_file, 'measurements')
+        
+        return {
+            'valid': True,
+            'sensors_validation': sensors_result,
+            'measurements_validation': measurements_result,
+            'message': 'All files validated successfully'
+        }
     
-    def list_uploads(self, campaign_id: Optional[str] = None, 
-                    station_id: Optional[str] = None,
-                    limit: int = 50, offset: int = 0) -> List[Dict[str, Any]]:
+    def get_file_info(self, file_path: Union[str, Path]) -> Dict[str, Any]:
         """
-        List data uploads.
+        Get information about a CSV file.
         
         Args:
-            campaign_id: Filter by campaign ID
-            station_id: Filter by station ID
-            limit: Maximum number of uploads to return
-            offset: Number of uploads to skip
+            file_path: Path to CSV file
             
         Returns:
-            List of upload dictionaries
+            File information dictionary
+            
+        Raises:
+            ValidationError: If file doesn't exist
         """
-        params = {'limit': limit, 'offset': offset}
+        file_path = Path(file_path)
         
-        if campaign_id:
-            params['campaign_id'] = campaign_id
-        if station_id:
-            params['station_id'] = station_id
+        if not file_path.exists():
+            raise ValidationError(f"File not found: {file_path}")
         
+        # Get file size
+        file_size_mb = file_path.stat().st_size / (1024 * 1024)
+        
+        # Count rows
         try:
-            response = requests.get(
-                f"{self.base_url}/uploads",
-                params=params,
-                headers=self.auth_manager.get_headers(),
-                timeout=self.auth_manager.config.timeout
-            )
-            response.raise_for_status()
-            
-            data = response.json()
-            return data.get('uploads', [])
-            
-        except requests.exceptions.RequestException as e:
-            raise APIError(f"Failed to list uploads: {e}")
+            with open(file_path, 'r', newline='', encoding='utf-8') as f:
+                reader = csv.reader(f)
+                row_count = sum(1 for _ in reader) - 1  # Subtract header row
+        except Exception as e:
+            logger.warning(f"Failed to count rows in {file_path}: {e}")
+            row_count = None
+        
+        return {
+            'file_path': str(file_path),
+            'file_name': file_path.name,
+            'file_size_mb': round(file_size_mb, 2),
+            'row_count': row_count,
+            'needs_chunking': file_size_mb > self.auth_manager.config.max_chunk_size_mb,
+            'max_chunk_size_mb': self.auth_manager.config.max_chunk_size_mb
+        }
