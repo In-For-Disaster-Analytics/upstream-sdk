@@ -282,7 +282,7 @@ class UpstreamClient:
         """
         return self.data.get_file_info(file_path)
 
-    def publish_to_ckan(self, campaign_id: str, **kwargs) -> Dict[str, Any]:
+    def publish_to_ckan(self, campaign_id: str, **kwargs: Any) -> Dict[str, Any]:
         """Publish campaign data to CKAN.
 
         Args:

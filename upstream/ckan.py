@@ -2,8 +2,10 @@
 CKAN integration for Upstream SDK.
 """
 
-from typing import Dict, Any, List, Optional
+from typing import Dict, Any, List, Optional, Union, BinaryIO
 import logging
+import os
+from pathlib import Path
 
 import requests
 
@@ -186,7 +188,9 @@ class CKANIntegration:
     def create_resource(self,
                        dataset_id: str,
                        name: str,
-                       url: str,
+                       url: Optional[str] = None,
+                       file_path: Optional[Union[str, Path]] = None,
+                       file_obj: Optional[BinaryIO] = None,
                        resource_type: str = "data",
                        format: str = "CSV",
                        description: str = "",
@@ -197,7 +201,9 @@ class CKANIntegration:
         Args:
             dataset_id: Dataset ID or name
             name: Resource name
-            url: Resource URL
+            url: Resource URL (for URL-based resources)
+            file_path: Path to file to upload
+            file_obj: File object to upload
             resource_type: Resource type
             format: Resource format
             description: Resource description
@@ -209,20 +215,50 @@ class CKANIntegration:
         resource_data = {
             'package_id': dataset_id,
             'name': name,
-            'url': url,
             'resource_type': resource_type,
             'format': format,
             'description': description,
             **kwargs
         }
 
-        try:
+        # Handle file upload vs URL
+        if file_path or file_obj:
+            # File upload
+            files = {}
+            if file_path:
+                file_path = Path(file_path)
+                if not file_path.exists():
+                    raise APIError(f"File not found: {file_path}")
+                files['upload'] = (file_path.name, open(file_path, 'rb'))
+            elif file_obj:
+                filename = getattr(file_obj, 'name', 'uploaded_file')
+                if hasattr(filename, 'split'):
+                    filename = os.path.basename(filename)
+                files['upload'] = (filename, file_obj)
+            
+            try:
+                response = self.session.post(
+                    f"{self.ckan_url}/api/3/action/resource_create",
+                    data=resource_data,
+                    files=files
+                )
+                response.raise_for_status()
+            finally:
+                # Close file if we opened it
+                if file_path and 'upload' in files:
+                    files['upload'][1].close()
+        else:
+            # URL-based resource
+            if not url:
+                raise APIError("Either url, file_path, or file_obj must be provided")
+            resource_data['url'] = url
             response = self.session.post(
                 f"{self.ckan_url}/api/3/action/resource_create",
                 json=resource_data
             )
             response.raise_for_status()
 
+        try:
             result = response.json()
 
             if not result.get('success'):
@@ -300,7 +336,11 @@ class CKANIntegration:
             campaign_id: Campaign ID
             campaign_data: Campaign information
             auto_publish: Whether to automatically publish the dataset
-            **kwargs: Additional CKAN parameters
+            **kwargs: Additional CKAN parameters. Supported keys:
+                - sensor_csv: Path to sensor CSV file to upload
+                - measurement_csv: Path to measurement CSV file to upload
+                - sensors_url: URL to sensor data (alternative to sensor_csv)
+                - measurements_url: URL to measurement data (alternative to measurement_csv)
 
         Returns:
             CKAN publication result
@@ -336,8 +376,17 @@ class CKANIntegration:
             # Add resources for different data types
             resources_created = []
 
-            # Add sensors resource
-            if 'sensors_url' in kwargs:
+            # Add sensors resource (file upload or URL)
+            if 'sensor_csv' in kwargs:
+                sensors_resource = self.create_resource(
+                    dataset_id=dataset['id'],
+                    name='Sensors Configuration',
+                    file_path=kwargs['sensor_csv'],
+                    format='CSV',
+                    description='Sensor configuration and metadata'
+                )
+                resources_created.append(sensors_resource)
+            elif 'sensors_url' in kwargs:
                 sensors_resource = self.create_resource(
                     dataset_id=dataset['id'],
                     name='Sensors Configuration',
@@ -347,8 +396,17 @@ class CKANIntegration:
                 )
                 resources_created.append(sensors_resource)
 
-            # Add measurements resource
-            if 'measurements_url' in kwargs:
+            # Add measurements resource (file upload or URL)
+            if 'measurement_csv' in kwargs:
+                measurements_resource = self.create_resource(
+                    dataset_id=dataset['id'],
+                    name='Measurement Data',
+                    file_path=kwargs['measurement_csv'],
+                    format='CSV',
+                    description='Environmental sensor measurements'
+                )
+                resources_created.append(measurements_resource)
+            elif 'measurements_url' in kwargs:
                 measurements_resource = self.create_resource(
                     dataset_id=dataset['id'],
                     name='Measurement Data',
