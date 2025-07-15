@@ -21,9 +21,9 @@ from pydantic import Field, StrictBytes, StrictInt, StrictStr
 from typing import Any, Dict, Tuple, Union
 from typing_extensions import Annotated
 
-from upstream_client.api_client import ApiClient, RequestSerialized
-from upstream_client.api_response import ApiResponse
-from upstream_client.rest import RESTResponseType
+from upstream_api_client.api_client import ApiClient, RequestSerialized
+from upstream_api_client.api_response import ApiResponse
+from upstream_api_client.rest import RESTResponseType
 
 
 class UploadfileCsvApi:

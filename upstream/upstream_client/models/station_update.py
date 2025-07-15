@@ -21,7 +21,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from upstream_client.models.station_type import StationType
+from upstream_api_client.models.station_type import StationType
 from typing import Optional, Set
 from typing_extensions import Self
 

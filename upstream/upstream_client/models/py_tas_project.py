@@ -20,8 +20,8 @@ import json
 
 from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from upstream_client.models.py_tas_allocation import PyTASAllocation
-from upstream_client.models.py_taspi import PyTASPi
+from upstream_api_client.models.py_tas_allocation import PyTASAllocation
+from upstream_api_client.models.py_taspi import PyTASPi
 from typing import Optional, Set
 from typing_extensions import Self
 

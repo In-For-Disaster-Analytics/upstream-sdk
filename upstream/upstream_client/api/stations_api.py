@@ -19,15 +19,15 @@ from typing_extensions import Annotated
 
 from pydantic import StrictInt
 from typing import Optional
-from upstream_client.models.get_station_response import GetStationResponse
-from upstream_client.models.list_stations_response_pagination import ListStationsResponsePagination
-from upstream_client.models.station_create import StationCreate
-from upstream_client.models.station_create_response import StationCreateResponse
-from upstream_client.models.station_update import StationUpdate
+from upstream_api_client.models.get_station_response import GetStationResponse
+from upstream_api_client.models.list_stations_response_pagination import ListStationsResponsePagination
+from upstream_api_client.models.station_create import StationCreate
+from upstream_api_client.models.station_create_response import StationCreateResponse
+from upstream_api_client.models.station_update import StationUpdate
 
-from upstream_client.api_client import ApiClient, RequestSerialized
-from upstream_client.api_response import ApiResponse
-from upstream_client.rest import RESTResponseType
+from upstream_api_client.api_client import ApiClient, RequestSerialized
+from upstream_api_client.api_response import ApiResponse
+from upstream_api_client.rest import RESTResponseType
 
 
 class StationsApi:
@@ -1120,13 +1120,13 @@ class StationsApi:
             _path_params['campaign_id'] = campaign_id
         # process the query parameters
         if page is not None:
-            
+
             _query_params.append(('page', page))
-            
+
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter

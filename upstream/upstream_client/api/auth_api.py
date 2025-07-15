@@ -20,11 +20,11 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictStr, field_validator
 from typing import Optional
 from typing_extensions import Annotated
-from upstream_client.models.response_login_api_v1_token_post import ResponseLoginApiV1TokenPost
+from upstream_api_client.models.response_login_api_v1_token_post import ResponseLoginApiV1TokenPost
 
-from upstream_client.api_client import ApiClient, RequestSerialized
-from upstream_client.api_response import ApiResponse
-from upstream_client.rest import RESTResponseType
+from upstream_api_client.api_client import ApiClient, RequestSerialized
+from upstream_api_client.api_response import ApiResponse
+from upstream_api_client.rest import RESTResponseType
 
 
 class AuthApi:

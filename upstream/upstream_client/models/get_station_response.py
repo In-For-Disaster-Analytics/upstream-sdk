@@ -21,8 +21,8 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, StrictBool, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional
-from upstream_client.models.get_campaign_response_geometry import GetCampaignResponseGeometry
-from upstream_client.models.sensor_item import SensorItem
+from upstream_api_client.models.get_campaign_response_geometry import GetCampaignResponseGeometry
+from upstream_api_client.models.sensor_item import SensorItem
 from typing import Optional, Set
 from typing_extensions import Self
 

@@ -19,12 +19,12 @@ from typing_extensions import Annotated
 
 from pydantic import StrictStr
 from typing import List
-from upstream_client.models.py_tas_project import PyTASProject
-from upstream_client.models.py_tas_user import PyTASUser
+from upstream_api_client.models.py_tas_project import PyTASProject
+from upstream_api_client.models.py_tas_user import PyTASUser
 
-from upstream_client.api_client import ApiClient, RequestSerialized
-from upstream_client.api_response import ApiResponse
-from upstream_client.rest import RESTResponseType
+from upstream_api_client.api_client import ApiClient, RequestSerialized
+from upstream_api_client.api_response import ApiResponse
+from upstream_api_client.rest import RESTResponseType
 
 
 class ProjectsApi:

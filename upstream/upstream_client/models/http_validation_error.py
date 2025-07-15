@@ -20,7 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict
 from typing import Any, ClassVar, Dict, List, Optional
-from upstream_client.models.validation_error import ValidationError
+from upstream_api_client.models.validation_error import ValidationError
 from typing import Optional, Set
 from typing_extensions import Self
 

@@ -10,6 +10,12 @@ from typing import Optional, Dict, Any, List, Union
 from pathlib import Path
 from datetime import datetime
 
+from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
+from upstream_api_client.models.get_campaign_response import GetCampaignResponse
+from upstream_api_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
+from upstream_api_client.models.station_create_response import StationCreateResponse
+from upstream_api_client.models.get_station_response import GetStationResponse
+from upstream_api_client.models.list_stations_response_pagination import ListStationsResponsePagination
 from .auth import AuthManager
 from .campaigns import CampaignManager
 from .stations import StationManager
@@ -17,14 +23,6 @@ from .data import DataUploader
 from .ckan import CKANIntegration
 from .utils import ConfigManager, get_logger
 from .exceptions import ConfigurationError
-from .upstream_client.models.campaign_create_response import CampaignCreateResponse
-from .upstream_client.models.get_campaign_response import GetCampaignResponse
-from .upstream_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
-from .upstream_client.models.station_create_response import StationCreateResponse
-from .upstream_client.models.get_station_response import GetStationResponse
-from .upstream_client.models.list_stations_response_pagination import ListStationsResponsePagination
-from .upstream_client.models.validate_files_response import ValidateFilesResponse
-from .upstream_client.models.get_file_info_response import GetFileInfoResponse
 
 logger = get_logger(__name__)
 
@@ -261,7 +259,7 @@ class UpstreamClient:
         )
 
     def validate_files(self, sensors_file: Union[str, Path],
-                      measurements_file: Union[str, Path]) -> ValidateFilesResponse:
+                      measurements_file: Union[str, Path]) -> Dict[str, Any]:
         """Validate CSV files without uploading.
 
         Args:
@@ -273,7 +271,7 @@ class UpstreamClient:
         """
         return self.data.validate_files(sensors_file, measurements_file)
 
-    def get_file_info(self, file_path: Union[str, Path]) -> GetFileInfoResponse:
+    def get_file_info(self, file_path: Union[str, Path]) -> Dict[str, Any]:
         """Get information about a CSV file.
 
         Args:

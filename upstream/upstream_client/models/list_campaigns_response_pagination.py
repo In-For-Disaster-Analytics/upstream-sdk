@@ -20,7 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictInt
 from typing import Any, ClassVar, Dict, List
-from upstream_client.models.list_campaigns_response_item import ListCampaignsResponseItem
+from upstream_api_client.models.list_campaigns_response_item import ListCampaignsResponseItem
 from typing import Optional, Set
 from typing_extensions import Self
 

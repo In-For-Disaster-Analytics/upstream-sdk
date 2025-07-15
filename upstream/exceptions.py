@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 class UpstreamError(Exception):
     """Base exception class for all Upstream SDK errors."""
-    
+
     def __init__(self, message: str, details: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message)
         self.message = message
@@ -22,15 +22,15 @@ class UpstreamError(Exception):
 
 class AuthenticationError(UpstreamError):
     """Raised when authentication with the Upstream API fails."""
-    
-    def __init__(self, message: str = "Authentication failed", 
+
+    def __init__(self, message: str = "Authentication failed",
                  details: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message, details)
 
 
 class ValidationError(UpstreamError):
     """Raised when data validation fails."""
-    
+
     def __init__(self, message: str, field: Optional[str] = None,
                  details: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message, details)
@@ -39,8 +39,8 @@ class ValidationError(UpstreamError):
 
 class UploadError(UpstreamError):
     """Raised when data upload operations fail."""
-    
-    def __init__(self, message: str, 
+
+    def __init__(self, message: str,
                  upload_id: Optional[str] = None,
                  details: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message, details)
@@ -49,8 +49,8 @@ class UploadError(UpstreamError):
 
 class APIError(UpstreamError):
     """Raised when API requests fail."""
-    
-    def __init__(self, message: str, 
+
+    def __init__(self, message: str,
                  status_code: Optional[int] = None,
                  response_data: Optional[Dict[str, Any]] = None,
                  details: Optional[Dict[str, Any]] = None) -> None:
@@ -61,7 +61,7 @@ class APIError(UpstreamError):
 
 class NetworkError(UpstreamError):
     """Raised when network operations fail."""
-    
+
     def __init__(self, message: str = "Network operation failed",
                  details: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message, details)
@@ -69,8 +69,8 @@ class NetworkError(UpstreamError):
 
 class ConfigurationError(UpstreamError):
     """Raised when SDK configuration is invalid."""
-    
-    def __init__(self, message: str, 
+
+    def __init__(self, message: str,
                  config_key: Optional[str] = None,
                  details: Optional[Dict[str, Any]] = None) -> None:
         super().__init__(message, details)
@@ -79,7 +79,7 @@ class ConfigurationError(UpstreamError):
 
 class RateLimitError(UpstreamError):
     """Raised when API rate limits are exceeded."""
-    
+
     def __init__(self, message: str = "Rate limit exceeded",
                  retry_after: Optional[int] = None,
                  details: Optional[Dict[str, Any]] = None) -> None:
@@ -89,7 +89,7 @@ class RateLimitError(UpstreamError):
 
 class OpenAPIError(UpstreamError):
     """Raised when OpenAPI client operations fail."""
-    
+
     def __init__(self, message: str,
                  status_code: Optional[int] = None,
                  reason: Optional[str] = None,
@@ -103,7 +103,7 @@ class OpenAPIError(UpstreamError):
 
 class CKANError(UpstreamError):
     """Raised when CKAN integration operations fail."""
-    
+
     def __init__(self, message: str,
                  ckan_error_code: Optional[str] = None,
                  ckan_error_type: Optional[str] = None,
@@ -115,23 +115,23 @@ class CKANError(UpstreamError):
 
 def handle_openapi_exception(api_exception) -> UpstreamError:
     """Convert OpenAPI ApiException to appropriate SDK exception.
-    
+
     Args:
-        api_exception: The ApiException from upstream_client
-        
+        api_exception: The ApiException from upstream_api_client
+
     Returns:
         Appropriate SDK exception
     """
     try:
-        from upstream_client.rest import ApiException
-        
+        from upstream_api_client.rest import ApiException
+
         if not isinstance(api_exception, ApiException):
             return APIError(f"Unknown API error: {api_exception}")
-        
+
         status_code = api_exception.status
         reason = api_exception.reason
         headers = getattr(api_exception, 'headers', {})
-        
+
         # Parse response body if available
         response_data = {}
         if hasattr(api_exception, 'body') and api_exception.body:
@@ -140,7 +140,7 @@ def handle_openapi_exception(api_exception) -> UpstreamError:
                 response_data = json.loads(api_exception.body)
             except (json.JSONDecodeError, TypeError):
                 response_data = {"raw_body": str(api_exception.body)}
-        
+
         # Map status codes to specific exceptions
         if status_code == 401:
             return AuthenticationError(
@@ -167,7 +167,7 @@ def handle_openapi_exception(api_exception) -> UpstreamError:
                     retry_after = int(headers['retry-after'])
                 except (ValueError, TypeError):
                     pass
-            
+
             return RateLimitError(
                 message="Rate limit exceeded",
                 retry_after=retry_after,
@@ -195,9 +195,9 @@ def handle_openapi_exception(api_exception) -> UpstreamError:
                 status_code=status_code,
                 response_data=response_data
             )
-            
+
     except ImportError:
-        logger.warning("upstream_client not available for exception handling")
+        logger.warning("upstream_api_client not available for exception handling")
         return APIError(f"API error: {api_exception}")
     except Exception as e:
         logger.error(f"Error handling OpenAPI exception: {e}")
@@ -206,44 +206,44 @@ def handle_openapi_exception(api_exception) -> UpstreamError:
 
 def format_validation_error(validation_error: ValidationError) -> str:
     """Format validation error for user-friendly display.
-    
+
     Args:
         validation_error: ValidationError instance
-        
+
     Returns:
         Formatted error message
     """
     message = validation_error.message
-    
+
     if validation_error.field:
         message = f"Field '{validation_error.field}': {message}"
-    
+
     if validation_error.details:
         details_str = ", ".join(f"{k}: {v}" for k, v in validation_error.details.items())
         message = f"{message} (Details: {details_str})"
-    
+
     return message
 
 
 def format_api_error(api_error: APIError) -> str:
     """Format API error for user-friendly display.
-    
+
     Args:
         api_error: APIError instance
-        
+
     Returns:
         Formatted error message
     """
     message = api_error.message
-    
+
     if api_error.status_code:
         message = f"HTTP {api_error.status_code}: {message}"
-    
+
     if api_error.response_data:
         if isinstance(api_error.response_data, dict):
             if 'detail' in api_error.response_data:
                 message = f"{message} - {api_error.response_data['detail']}"
             elif 'error' in api_error.response_data:
                 message = f"{message} - {api_error.response_data['error']}"
-    
+
     return message

@@ -8,18 +8,18 @@ monitoring campaigns using the generated OpenAPI client.
 from typing import Optional
 from datetime import datetime
 
-from upstream.upstream_client.models.get_campaign_response import GetCampaignResponse
-from upstream.upstream_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
+from upstream_api_client.models.get_campaign_response import GetCampaignResponse
+from upstream_api_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
 
-from .upstream_client.api import CampaignsApi
-from .upstream_client.models import (
+from upstream_api_client.api import CampaignsApi
+from upstream_api_client.models import (
     CampaignsIn,
     CampaignCreateResponse,
     CampaignUpdate
 )
-from .auth import AuthManager
-from .upstream_client.rest import ApiException
+from upstream_api_client.rest import ApiException
 
+from .auth import AuthManager
 from .exceptions import APIError, ValidationError
 from .utils import get_logger
 

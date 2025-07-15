@@ -6,9 +6,9 @@ to interact with the Upstream API and CKAN data portals.
 """
 
 from .client import UpstreamClient
-from .auth import AuthManager, TokenManager
-from .campaigns import CampaignManager, Campaign
-from .stations import StationManager, Station
+from .auth import AuthManager
+from .campaigns import CampaignManager
+from .stations import StationManager
 from .data import DataUploader, DataValidator
 from .ckan import CKANIntegration
 from .exceptions import (

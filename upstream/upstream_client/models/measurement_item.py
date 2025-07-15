@@ -21,7 +21,7 @@ import json
 from datetime import datetime
 from pydantic import BaseModel, ConfigDict, StrictFloat, StrictInt, StrictStr
 from typing import Any, ClassVar, Dict, List, Optional, Union
-from upstream_client.models.point import Point
+from upstream_api_client.models.point import Point
 from typing import Optional, Set
 from typing_extensions import Self
 

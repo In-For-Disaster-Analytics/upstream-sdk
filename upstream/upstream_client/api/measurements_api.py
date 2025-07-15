@@ -21,15 +21,15 @@ from datetime import datetime
 from pydantic import Field, StrictFloat, StrictInt, StrictStr
 from typing import List, Optional, Union
 from typing_extensions import Annotated
-from upstream_client.models.aggregated_measurement import AggregatedMeasurement
-from upstream_client.models.list_measurements_response_pagination import ListMeasurementsResponsePagination
-from upstream_client.models.measurement_create_response import MeasurementCreateResponse
-from upstream_client.models.measurement_in import MeasurementIn
-from upstream_client.models.measurement_update import MeasurementUpdate
+from upstream_api_client.models.aggregated_measurement import AggregatedMeasurement
+from upstream_api_client.models.list_measurements_response_pagination import ListMeasurementsResponsePagination
+from upstream_api_client.models.measurement_create_response import MeasurementCreateResponse
+from upstream_api_client.models.measurement_in import MeasurementIn
+from upstream_api_client.models.measurement_update import MeasurementUpdate
 
-from upstream_client.api_client import ApiClient, RequestSerialized
-from upstream_client.api_response import ApiResponse
-from upstream_client.rest import RESTResponseType
+from upstream_api_client.api_client import ApiClient, RequestSerialized
+from upstream_api_client.api_response import ApiResponse
+from upstream_api_client.rest import RESTResponseType
 
 
 class MeasurementsApi:
@@ -991,13 +991,13 @@ class MeasurementsApi:
             _path_params['sensor_id'] = sensor_id
         # process the query parameters
         if interval is not None:
-            
+
             _query_params.append(('interval', interval))
-            
+
         if interval_value is not None:
-            
+
             _query_params.append(('interval_value', interval_value))
-            
+
         if start_date is not None:
             if isinstance(start_date, datetime):
                 _query_params.append(
@@ -1010,7 +1010,7 @@ class MeasurementsApi:
                 )
             else:
                 _query_params.append(('start_date', start_date))
-            
+
         if end_date is not None:
             if isinstance(end_date, datetime):
                 _query_params.append(
@@ -1023,15 +1023,15 @@ class MeasurementsApi:
                 )
             else:
                 _query_params.append(('end_date', end_date))
-            
+
         if min_value is not None:
-            
+
             _query_params.append(('min_value', min_value))
-            
+
         if max_value is not None:
-            
+
             _query_params.append(('max_value', max_value))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter
@@ -1425,7 +1425,7 @@ class MeasurementsApi:
                 )
             else:
                 _query_params.append(('start_date', start_date))
-            
+
         if end_date is not None:
             if isinstance(end_date, datetime):
                 _query_params.append(
@@ -1438,27 +1438,27 @@ class MeasurementsApi:
                 )
             else:
                 _query_params.append(('end_date', end_date))
-            
+
         if min_measurement_value is not None:
-            
+
             _query_params.append(('min_measurement_value', min_measurement_value))
-            
+
         if max_measurement_value is not None:
-            
+
             _query_params.append(('max_measurement_value', max_measurement_value))
-            
+
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if page is not None:
-            
+
             _query_params.append(('page', page))
-            
+
         if downsample_threshold is not None:
-            
+
             _query_params.append(('downsample_threshold', downsample_threshold))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter

@@ -21,8 +21,8 @@ import json
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
 from typing_extensions import Annotated
-from upstream_client.models.bbox import Bbox
-from upstream_client.models.line_string_coordinates_inner import LineStringCoordinatesInner
+from upstream_api_client.models.bbox import Bbox
+from upstream_api_client.models.line_string_coordinates_inner import LineStringCoordinatesInner
 from typing import Optional, Set
 from typing_extensions import Self
 

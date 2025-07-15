@@ -7,17 +7,17 @@ using the generated OpenAPI client.
 
 from typing import Optional, Any
 
-from upstream.upstream_client.models.campaign_create_response import CampaignCreateResponse
+from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
 
-from .upstream_client.api import StationsApi
-from .upstream_client.models import (
+from upstream_api_client.api import StationsApi
+from upstream_api_client.models import (
     StationCreate,
     StationUpdate,
     GetStationResponse,
     StationCreateResponse,
     ListStationsResponsePagination
 )
-from .upstream_client.rest import ApiException
+from upstream_api_client.rest import ApiException
 
 from .exceptions import APIError, ValidationError
 from .utils import get_logger

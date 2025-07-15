@@ -21,15 +21,15 @@ from datetime import datetime
 from pydantic import Field, StrictInt, StrictStr
 from typing import List, Optional
 from typing_extensions import Annotated
-from upstream_client.models.campaign_create_response import CampaignCreateResponse
-from upstream_client.models.campaign_update import CampaignUpdate
-from upstream_client.models.campaigns_in import CampaignsIn
-from upstream_client.models.get_campaign_response import GetCampaignResponse
-from upstream_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
+from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
+from upstream_api_client.models.campaign_update import CampaignUpdate
+from upstream_api_client.models.campaigns_in import CampaignsIn
+from upstream_api_client.models.get_campaign_response import GetCampaignResponse
+from upstream_api_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
 
-from upstream_client.api_client import ApiClient, RequestSerialized
-from upstream_client.api_response import ApiResponse
-from upstream_client.rest import RESTResponseType
+from upstream_api_client.api_client import ApiClient, RequestSerialized
+from upstream_api_client.api_response import ApiResponse
+from upstream_api_client.rest import RESTResponseType
 
 
 class CampaignsApi:
@@ -1130,17 +1130,17 @@ class CampaignsApi:
         # process the path parameters
         # process the query parameters
         if page is not None:
-            
+
             _query_params.append(('page', page))
-            
+
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if bbox is not None:
-            
+
             _query_params.append(('bbox', bbox))
-            
+
         if start_date is not None:
             if isinstance(start_date, datetime):
                 _query_params.append(
@@ -1153,7 +1153,7 @@ class CampaignsApi:
                 )
             else:
                 _query_params.append(('start_date', start_date))
-            
+
         if end_date is not None:
             if isinstance(end_date, datetime):
                 _query_params.append(
@@ -1166,11 +1166,11 @@ class CampaignsApi:
                 )
             else:
                 _query_params.append(('end_date', end_date))
-            
+
         if sensor_variables is not None:
-            
+
             _query_params.append(('sensor_variables', sensor_variables))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter

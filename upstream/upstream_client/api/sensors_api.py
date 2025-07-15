@@ -20,15 +20,15 @@ from typing_extensions import Annotated
 from pydantic import Field, StrictBool, StrictInt, StrictStr
 from typing import Optional
 from typing_extensions import Annotated
-from upstream_client.models.get_sensor_response import GetSensorResponse
-from upstream_client.models.list_sensors_response_pagination import ListSensorsResponsePagination
-from upstream_client.models.sensor_create_response import SensorCreateResponse
-from upstream_client.models.sensor_update import SensorUpdate
-from upstream_client.models.sort_field import SortField
+from upstream_api_client.models.get_sensor_response import GetSensorResponse
+from upstream_api_client.models.list_sensors_response_pagination import ListSensorsResponsePagination
+from upstream_api_client.models.sensor_create_response import SensorCreateResponse
+from upstream_api_client.models.sensor_update import SensorUpdate
+from upstream_api_client.models.sort_field import SortField
 
-from upstream_client.api_client import ApiClient, RequestSerialized
-from upstream_client.api_response import ApiResponse
-from upstream_client.rest import RESTResponseType
+from upstream_api_client.api_client import ApiClient, RequestSerialized
+from upstream_api_client.api_response import ApiResponse
+from upstream_api_client.rest import RESTResponseType
 
 
 class SensorsApi:
@@ -968,41 +968,41 @@ class SensorsApi:
             _path_params['station_id'] = station_id
         # process the query parameters
         if page is not None:
-            
+
             _query_params.append(('page', page))
-            
+
         if limit is not None:
-            
+
             _query_params.append(('limit', limit))
-            
+
         if variable_name is not None:
-            
+
             _query_params.append(('variable_name', variable_name))
-            
+
         if units is not None:
-            
+
             _query_params.append(('units', units))
-            
+
         if alias is not None:
-            
+
             _query_params.append(('alias', alias))
-            
+
         if description_contains is not None:
-            
+
             _query_params.append(('description_contains', description_contains))
-            
+
         if postprocess is not None:
-            
+
             _query_params.append(('postprocess', postprocess))
-            
+
         if sort_by is not None:
-            
+
             _query_params.append(('sort_by', sort_by.value))
-            
+
         if sort_order is not None:
-            
+
             _query_params.append(('sort_order', sort_order))
-            
+
         # process the header parameters
         # process the form parameters
         # process the body parameter

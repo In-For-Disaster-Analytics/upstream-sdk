@@ -20,7 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictStr, field_validator
 from typing import Any, ClassVar, Dict, List, Optional
-from upstream_client.models.bbox import Bbox
+from upstream_api_client.models.bbox import Bbox
 from typing import Optional, Set
 from typing_extensions import Self
 
@@ -112,7 +112,7 @@ class GeometryCollection(BaseModel):
         })
         return _obj
 
-from upstream_client.models.geometry_collection_geometries_inner import GeometryCollectionGeometriesInner
+from upstream_api_client.models.geometry_collection_geometries_inner import GeometryCollectionGeometriesInner
 # TODO: Rewrite to not use raise_errors
 GeometryCollection.model_rebuild(raise_errors=False)
 

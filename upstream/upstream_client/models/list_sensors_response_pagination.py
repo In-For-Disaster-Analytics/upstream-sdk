@@ -20,7 +20,7 @@ import json
 
 from pydantic import BaseModel, ConfigDict, StrictInt
 from typing import Any, ClassVar, Dict, List
-from upstream_client.models.sensor_item import SensorItem
+from upstream_api_client.models.sensor_item import SensorItem
 from typing import Optional, Set
 from typing_extensions import Self
 

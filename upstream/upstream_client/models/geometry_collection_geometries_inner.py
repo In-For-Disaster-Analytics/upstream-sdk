@@ -18,12 +18,12 @@ import json
 import pprint
 from pydantic import BaseModel, ConfigDict, Field, StrictStr, ValidationError, field_validator
 from typing import Any, List, Optional
-from upstream_client.models.line_string import LineString
-from upstream_client.models.multi_line_string import MultiLineString
-from upstream_client.models.multi_point import MultiPoint
-from upstream_client.models.multi_polygon import MultiPolygon
-from upstream_client.models.point import Point
-from upstream_client.models.polygon import Polygon
+from upstream_api_client.models.line_string import LineString
+from upstream_api_client.models.multi_line_string import MultiLineString
+from upstream_api_client.models.multi_point import MultiPoint
+from upstream_api_client.models.multi_polygon import MultiPolygon
+from upstream_api_client.models.point import Point
+from upstream_api_client.models.polygon import Polygon
 from pydantic import StrictStr, Field
 from typing import Union, List, Set, Optional, Dict
 from typing_extensions import Literal, Self
@@ -207,7 +207,7 @@ class GeometryCollectionGeometriesInner(BaseModel):
         """Returns the string representation of the actual instance"""
         return pprint.pformat(self.model_dump())
 
-from upstream_client.models.geometry_collection import GeometryCollection
+from upstream_api_client.models.geometry_collection import GeometryCollection
 # TODO: Rewrite to not use raise_errors
 GeometryCollectionGeometriesInner.model_rebuild(raise_errors=False)
 
