@@ -6,7 +6,7 @@ and CKAN data platform using the OpenAPI client.
 """
 
 import os
-from typing import Optional, Dict, Any, List, Union
+from typing import Optional, Dict, Any, List, Union, Tuple
 from pathlib import Path
 from datetime import datetime
 
@@ -217,6 +217,53 @@ class UpstreamClient:
             sensors_file=sensors_file,
             measurements_file=measurements_file,
             **kwargs
+        )
+
+    def upload_sensor_measurement_files(self, campaign_id: str, station_id: str,
+                                      sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
+                                      measurements_file: Union[str, Path, bytes, Tuple[str, bytes]]) -> Dict[str, object]:
+        """Upload sensor and measurement CSV files to process and store data in the database.
+
+        This method uses the direct API endpoint for processing sensor and measurement files.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            sensors_file: File path, bytes, or tuple (filename, bytes) containing sensor metadata
+            measurements_file: File path, bytes, or tuple (filename, bytes) containing measurement data
+
+        Returns:
+            Response from the upload API containing processing results
+
+        CSV Format Requirements:
+
+        Sensors CSV (sensors_file):
+        - Header: alias,variablename,units,postprocess,postprocessscript
+        - alias: Unique identifier for the sensor (used as column header in measurements)
+        - variablename: Human-readable description of what the sensor measures
+        - units: Measurement units (e.g., °C, %, hPa, m/s)
+        - postprocess: Boolean flag indicating if post-processing is required
+        - postprocessscript: Name of the post-processing script (if applicable)
+
+        Measurements CSV (measurements_file):
+        - Header: collectiontime,Lat_deg,Lon_deg,{sensor_aliases...}
+        - collectiontime: Timestamp in ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
+        - Lat_deg: Latitude in decimal degrees
+        - Lon_deg: Longitude in decimal degrees
+        - Sensor columns: Each sensor alias from sensors.csv becomes a column header
+        - Column names must exactly match the sensor aliases
+        - Empty values are automatically handled
+
+        File Requirements:
+        - Maximum file size: 500 MB per file
+        - Encoding: UTF-8
+        - Timestamps should be in UTC or include timezone information
+        """
+        return self.sensors.upload_csv_files(
+            campaign_id=campaign_id,
+            station_id=station_id,
+            sensors_file=sensors_file,
+            measurements_file=measurements_file
         )
 
     def upload_chunked_csv_data(self, campaign_id: str, station_id: str,

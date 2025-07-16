@@ -5,7 +5,7 @@ from upstream.client import UpstreamClient
 from upstream_api_client.models import CampaignsIn, CampaignUpdate, StationCreate, StationUpdate
 from upstream.exceptions import APIError
 
-BASE_URL = 'http://localhost:8008'
+BASE_URL = 'http://localhost:8000'
 CKAN_URL = 'http://ckan.tacc.cloud:5000'
 
 USERNAME = os.environ.get('UPSTREAM_USERNAME')
