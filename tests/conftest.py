@@ -12,8 +12,7 @@ import csv
 from upstream.client import UpstreamClient
 from upstream.auth import AuthManager
 from upstream.utils import ConfigManager
-from upstream.campaigns import Campaign
-from upstream.stations import Station
+from upstream_api_client.models import CampaignsIn, StationCreate, GetCampaignResponse, GetStationResponse, StationCreateResponse, ListStationsResponsePagination
 
 
 @pytest.fixture
@@ -140,9 +139,9 @@ def temp_csv_file():
         writer.writerow(['temp_01', 'Air Temperature', '°C'])
         writer.writerow(['humidity_01', 'Relative Humidity', '%'])
         temp_path = f.name
-    
+
     yield Path(temp_path)
-    
+
     # Cleanup
     Path(temp_path).unlink()
 
@@ -156,9 +155,9 @@ def temp_measurements_csv():
         writer.writerow(['2024-01-01T10:00:00Z', '30.2672', '-97.7431', '25.5', '65.2'])
         writer.writerow(['2024-01-01T10:01:00Z', '30.2672', '-97.7431', '25.7', '64.8'])
         temp_path = f.name
-    
+
     yield Path(temp_path)
-    
+
     # Cleanup
     Path(temp_path).unlink()
 
@@ -183,13 +182,13 @@ def temp_config_file():
             "retry_attempts": 3
         }
     }
-    
+
     with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
         json.dump(config_data, f)
         temp_path = f.name
-    
+
     yield Path(temp_path)
-    
+
     # Cleanup
     Path(temp_path).unlink()
 
@@ -207,13 +206,13 @@ def mock_requests_response():
 @pytest.fixture
 def mock_campaign(sample_campaign_data):
     """Mock Campaign object."""
-    return Campaign(sample_campaign_data)
+    return GetCampaignResponse(**sample_campaign_data)
 
 
 @pytest.fixture
 def mock_station(sample_station_data):
     """Mock Station object."""
-    return Station(**sample_station_data)
+    return GetStationResponse(**sample_station_data)
 
 
 @pytest.fixture(autouse=True)
@@ -245,7 +244,7 @@ def pytest_collection_modifyitems(config, items):
     """Modify test collection to skip network tests by default."""
     if config.getoption("--run-network"):
         return
-    
+
     skip_network = pytest.mark.skip(reason="need --run-network option to run")
     for item in items:
         if "network" in item.keywords:
