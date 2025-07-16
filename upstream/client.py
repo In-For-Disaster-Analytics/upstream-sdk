@@ -19,16 +19,20 @@ from upstream_api_client.models.list_stations_response_pagination import ListSta
 from .auth import AuthManager
 from .campaigns import CampaignManager
 from .stations import StationManager
+from .sensors import SensorManager
 from .data import DataUploader
 from .ckan import CKANIntegration
 from .utils import ConfigManager, get_logger
 from .exceptions import ConfigurationError
+from upstream_api_client.models import CampaignsIn, StationCreate
 
 logger = get_logger(__name__)
 
 
 class UpstreamClient:
     """Main client class for interacting with the Upstream API."""
+
+    ckan: Optional[CKANIntegration]
 
     def __init__(self,
                  username: Optional[str] = None,
@@ -68,6 +72,7 @@ class UpstreamClient:
         # Initialize component managers
         self.campaigns = CampaignManager(self.auth_manager)
         self.stations = StationManager(self.auth_manager)
+        self.sensors = SensorManager(self.auth_manager)
         self.data = DataUploader(self.auth_manager)
 
         # Initialize CKAN integration if URL provided
@@ -121,23 +126,16 @@ class UpstreamClient:
         """
         return self.auth_manager.authenticate()
 
-    def create_campaign(self, name: str, description: str = "",
-                        allocation: str = "TACC",
-                       start_date: Optional[datetime] = None,
-                       end_date: Optional[datetime] = None,
-                       ) -> CampaignCreateResponse:
+    def create_campaign(self, campaign_in: CampaignsIn) -> CampaignCreateResponse:
         """Create a new monitoring campaign.
 
         Args:
-            name: Campaign name
-            description: Campaign description
-            start_date: Campaign start date
-            end_date: Campaign end date
+            campaign_in: CampaignsIn model instance
 
         Returns:
             Created Campaign object
         """
-        return self.campaigns.create(name=name, description=description, start_date=start_date, end_date=end_date, allocation=allocation)
+        return self.campaigns.create(campaign_in)
 
     def get_campaign(self, campaign_id: str) -> GetCampaignResponse:
         """Get campaign by ID.
@@ -161,30 +159,17 @@ class UpstreamClient:
         """
         return self.campaigns.list(**kwargs)
 
-    def create_station(self, campaign_id: str, name: str,
-                      latitude: float, longitude: float,
-                      description: str = "", **kwargs: Any) -> StationCreateResponse:
+    def create_station(self, campaign_id: str, station_create: StationCreate) -> StationCreateResponse:
         """Create a new monitoring station.
 
         Args:
             campaign_id: ID of the campaign
-            name: Station name
-            latitude: Station latitude
-            longitude: Station longitude
-            description: Station description
-            **kwargs: Additional station parameters
+            station_create: StationCreate model instance
 
         Returns:
             Created Station object
         """
-        return self.stations.create(
-            campaign_id=campaign_id,
-            name=name,
-            latitude=latitude,
-            longitude=longitude,
-            description=description,
-            start_date=datetime.now(),
-        )
+        return self.stations.create(campaign_id, station_create)
 
     def get_station(self, station_id: str, campaign_id: str) -> GetStationResponse:
         """Get station by ID.
