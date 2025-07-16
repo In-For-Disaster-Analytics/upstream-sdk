@@ -5,10 +5,6 @@ This module handles creation, retrieval, and management of monitoring stations
 using the generated OpenAPI client.
 """
 
-from datetime import datetime
-from typing import Optional, Any
-
-from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
 
 from upstream_api_client.api import StationsApi
 from upstream_api_client.models import (
@@ -20,6 +16,7 @@ from upstream_api_client.models import (
 )
 from upstream_api_client.rest import ApiException
 
+from .auth import AuthManager
 from .exceptions import APIError, ValidationError
 from .utils import get_logger
 
@@ -31,7 +28,7 @@ class StationManager:
     Manages station operations using the OpenAPI client.
     """
 
-    def __init__(self, auth_manager: Any) -> None:
+    def __init__(self, auth_manager: AuthManager) -> None:
         """
         Initialize station manager.
 

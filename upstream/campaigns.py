@@ -6,7 +6,6 @@ monitoring campaigns using the generated OpenAPI client.
 """
 
 from typing import Optional
-from datetime import datetime
 
 from upstream_api_client.models.get_campaign_response import GetCampaignResponse
 from upstream_api_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
@@ -39,61 +38,30 @@ class CampaignManager:
         """
         self.auth_manager = auth_manager
 
-    def create(self, name: str, description: str = "",
-               contact_name: Optional[str] = None,
-               contact_email: Optional[str] = None,
-               allocation: str = "TACC",
-               start_date: Optional[datetime] = None,
-               end_date: Optional[datetime] = None,
-               ) -> CampaignCreateResponse:
-        """Create a new campaign.
+    def create(self, campaign_in: CampaignsIn) -> CampaignCreateResponse:
+        """
+        Create a new campaign.
 
         Args:
-            name: Campaign name
-            description: Campaign description
-            contact_name: Contact person name
-            contact_email: Contact email address
-            allocation: Resource allocation (defaults to "TACC")
-            start_date: Campaign start date
-            end_date: Campaign end date
+            campaign_in: CampaignsIn model instance
 
         Returns:
             Created Campaign object
 
         Raises:
-            ValidationError: If campaign data is invalid
+            ValidationError: If campaign_in is not a CampaignsIn
             APIError: If API request fails
         """
-        if not name.strip():
-            raise ValidationError("Campaign name cannot be empty", field="name")
-
-        # Set default dates if not provided
-        if start_date is None:
-            start_date = datetime.now()
-        if end_date is None:
-            end_date = datetime.now().replace(year=datetime.now().year + 1)
-
-        # Create campaign input model
-        campaign_input = CampaignsIn(
-            name=name.strip(),
-            description=description.strip() if description else "",
-            contact_name=contact_name,
-            contact_email=contact_email,
-            allocation=allocation,
-            start_date=start_date,
-            end_date=end_date
-        )
+        if not isinstance(campaign_in, CampaignsIn):
+            raise ValidationError("campaign_in must be a CampaignsIn instance", field="campaign_in")
 
         try:
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
-
                 response: CampaignCreateResponse = campaigns_api.create_campaign_api_v1_campaigns_post(
-                    campaigns_in=campaign_input
+                    campaigns_in=campaign_in
                 )
-
                 return response
-
         except ApiException as e:
             if e.status == 422:
                 raise ValidationError(f"Campaign validation failed: {e}")
@@ -165,58 +133,32 @@ class CampaignManager:
         except Exception as e:
             raise APIError(f"Failed to list campaigns: {e}")
 
-    def update(self, campaign_id: str, name: Optional[str] = None,
-               description: Optional[str] = None,
-               contact_name: Optional[str] = None,
-               contact_email: Optional[str] = None,
-               ) -> CampaignCreateResponse:
-        """Update an existing campaign.
+    def update(self, campaign_id: str, campaign_update: CampaignUpdate) -> CampaignCreateResponse:
+        """
+        Update an existing campaign.
 
         Args:
             campaign_id: Campaign ID
-            name: New campaign name
-            description: New campaign description
-            contact_name: New contact name
-            contact_email: New contact email
+            campaign_update: CampaignUpdate model instance
 
         Returns:
             Updated Campaign object
 
         Raises:
-            ValidationError: If update data is invalid
+            ValidationError: If campaign_update is not a CampaignUpdate
             APIError: If API request fails
         """
+        if not isinstance(campaign_update, CampaignUpdate):
+            raise ValidationError("campaign_update must be a CampaignUpdate instance", field="campaign_update")
         try:
             campaign_id_int = int(campaign_id)
-
-            # Build update data
-            update_data = {}
-            if name is not None:
-                if not name.strip():
-                    raise ValidationError("Campaign name cannot be empty", field="name")
-                update_data['name'] = name.strip()
-            if description is not None:
-                update_data['description'] = description.strip()
-            if contact_name is not None:
-                update_data['contact_name'] = contact_name
-            if contact_email is not None:
-                update_data['contact_email'] = contact_email
-
-            if not update_data:
-                raise ValidationError("No fields to update provided")
-
-            campaign_update = CampaignUpdate(**update_data)
-
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
-
-                response = campaigns_api.partial_update_campaign_api_v1_campaigns_campaign_id_patch_with_http_info(
+                response: CampaignCreateResponse = campaigns_api.partial_update_campaign_api_v1_campaigns_campaign_id_patch(
                     campaign_id=campaign_id_int,
                     campaign_update=campaign_update
                 )
-
                 return response
-
         except ValueError:
             raise ValidationError(f"Invalid campaign ID format: {campaign_id}")
         except ApiException as e:
@@ -247,7 +189,7 @@ class CampaignManager:
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
 
-                campaigns_api.delete_campaign_api_v1_campaigns_campaign_id_delete(
+                campaigns_api.delete_sensor_api_v1_campaigns_campaign_id_delete(
                     campaign_id=campaign_id_int
                 )
 
