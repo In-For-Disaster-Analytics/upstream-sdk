@@ -150,12 +150,42 @@ def test_upload_csv_files(client):
                 os.unlink(measurements_file_path)
 
                 # Check the sensors
-                print(f"Sensor: {sensors.items[0]}")
-                assert sensors.items[0].alias == "temp_sensor_01"
-                assert sensors.items[0].variablename == "Air Temperature"
-                assert sensors.items[0].units == "°C"
-                assert sensors.items[0].postprocess == True
-                assert sensors.items[0].postprocessscript == "wind_correction_script"
+
+                all_aliases = [sensor.alias for sensor in sensors.items]
+                assert "temp_sensor_01" in all_aliases
+                assert "humidity_01" in all_aliases
+                assert "pressure_01" in all_aliases
+                assert "wind_speed_01" in all_aliases
+
+                all_variablenames = [sensor.variablename for sensor in sensors.items]
+                assert "Air Temperature" in all_variablenames
+                assert "Relative Humidity" in all_variablenames
+                assert "Atmospheric Pressure" in all_variablenames
+                assert "Wind Speed" in all_variablenames
+
+                all_units = [sensor.units for sensor in sensors.items]
+                assert "°C" in all_units
+                assert "%" in all_units
+                assert "hPa" in all_units
+                assert "m/s" in all_units
+
+                all_postprocesses = [sensor.postprocess for sensor in sensors.items]
+                assert all(postprocess is True for postprocess in all_postprocesses)
+
+
+                all_postprocessscripts = [sensor.postprocessscript for sensor in sensors.items]
+                assert "wind_correction_script" in all_postprocessscripts
+                assert "humidity_correction_script" in all_postprocessscripts
+                assert "pressure_correction_script" in all_postprocessscripts
+                assert "wind_correction_script" in all_postprocessscripts
+
+                # all_variablenames = [sensor.variablename for sensor in sensors.items]
+                # print(f"Sensor: {sensors.items[0]}")
+                # assert sensors.items[0].alias == "temp_sensor_01"
+                # assert sensors.items[0].variablename == "Air Temperature"
+                # assert sensors.items[0].units == "°C"
+                # assert sensors.items[0].postprocess is True
+                # assert sensors.items[0].postprocessscript == "wind_correction_script"
 
 
         finally:
