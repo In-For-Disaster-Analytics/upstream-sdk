@@ -12,7 +12,6 @@ from pathlib import Path
 from datetime import datetime, timedelta
 
 from upstream import UpstreamClient
-from upstream_api_client.models import SensorUpdate
 
 
 BASE_URL = 'http://localhost:8000'
@@ -40,6 +39,26 @@ def client():
     # Ensure authentication
     assert client.authenticate(), "Authentication failed"
     return client
+
+def sensor_file_content():
+    """Create temporary CSV files for testing."""
+    return """alias,variablename,units,postprocess,postprocessscript
+temp_sensor_01,Air Temperature,°C,True,wind_correction_script
+humidity_01,Relative Humidity,%,True,humidity_correction_script
+pressure_01,Atmospheric Pressure,hPa,True,pressure_correction_script
+wind_speed_01,Wind Speed,m/s,True,wind_correction_script"""
+
+def measurements_file_content_empty():
+    """Create temporary CSV files for testing."""
+    return """collectiontime,Lat_deg,Lon_deg,temp_sensor_01,humidity_01,pressure_01,wind_speed_01\n"""
+
+def measurements_file_content_filled():
+    """Create temporary CSV files for testing."""
+    return """collectiontime,Lat_deg,Lon_deg,temp_sensor_01,humidity_01,pressure_01,wind_speed_01
+2024-01-15T10:30:00,30.2672,-97.7431,23.5,65.2,1013.25,2.3
+2024-01-15T10:31:00,30.2673,-97.7432,23.7,64.8,1013.20,2.1
+2024-01-15T10:32:00,30.2674,-97.7433,23.9,64.5,1013.15,1.8
+2024-01-15T10:33:00,30.2675,-97.7434,,64.2,1013.10,1.9"""
 
 
 def test_upload_csv_files(client):
@@ -79,19 +98,11 @@ def test_upload_csv_files(client):
         try:
             # Create temporary CSV files for testing using the correct format
             with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as sensors_file:
-                sensors_file.write("alias,variablename,units,postprocess,postprocessscript\n")
-                sensors_file.write("temp_sensor_01,Air Temperature,°C,True,wind_correction_script\n")
-                sensors_file.write("humidity_01,Relative Humidity,%,True,humidity_correction_script\n")
-                sensors_file.write("pressure_01,Atmospheric Pressure,hPa,True,pressure_correction_script\n")
-                sensors_file.write("wind_speed_01,Wind Speed,m/s,True,wind_correction_script\n")
+                sensors_file.write(sensor_file_content())
                 sensors_file_path = sensors_file.name
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as measurements_file:
-                measurements_file.write("collectiontime,Lat_deg,Lon_deg,temp_sensor_01,humidity_01,pressure_01,wind_speed_01\n")
-                measurements_file.write("2024-01-15T10:30:00,30.2672,-97.7431,23.5,65.2,1013.25,2.3\n")
-                measurements_file.write("2024-01-15T10:31:00,30.2673,-97.7432,23.7,64.8,1013.20,2.1\n")
-                measurements_file.write("2024-01-15T10:32:00,30.2674,-97.7433,23.9,64.5,1013.15,1.8\n")
-                measurements_file.write("2024-01-15T10:33:00,30.2675,-97.7434,,64.2,1013.10,1.9\n")
+                measurements_file.write(measurements_file_content_empty())
                 measurements_file_path = measurements_file.name
 
             try:
@@ -144,13 +155,7 @@ def test_upload_csv_files(client):
                 assert len(sensors.items) > 0
                 print(f"Sensors: {sensors.items}")
 
-            finally:
-                # Clean up temporary files
-                os.unlink(sensors_file_path)
-                os.unlink(measurements_file_path)
-
                 # Check the sensors
-
                 all_aliases = [sensor.alias for sensor in sensors.items]
                 assert "temp_sensor_01" in all_aliases
                 assert "humidity_01" in all_aliases
@@ -178,22 +183,23 @@ def test_upload_csv_files(client):
                 assert "humidity_correction_script" in all_postprocessscripts
                 assert "pressure_correction_script" in all_postprocessscripts
                 assert "wind_correction_script" in all_postprocessscripts
+            finally:
+                # Clean up temporary files
+                os.unlink(sensors_file_path)
+                os.unlink(measurements_file_path)
+                for sensor in sensors.items:
+                    client.sensors.delete(sensor.id, station_id, campaign_id)
 
-                # all_variablenames = [sensor.variablename for sensor in sensors.items]
-                # print(f"Sensor: {sensors.items[0]}")
-                # assert sensors.items[0].alias == "temp_sensor_01"
-                # assert sensors.items[0].variablename == "Air Temperature"
-                # assert sensors.items[0].units == "°C"
-                # assert sensors.items[0].postprocess is True
-                # assert sensors.items[0].postprocessscript == "wind_correction_script"
+                # Check the sensors
+                sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
+                assert len(sensors.items) == 0
+
 
 
         finally:
             # Clean up station
-            pass
-            #client.stations.delete(station_id, campaign_id)
+            client.stations.delete(station_id, campaign_id)
 
     finally:
         # Clean up campaign
-        pass
-        #client.campaigns.delete(campaign_id)
+        client.campaigns.delete(campaign_id)
