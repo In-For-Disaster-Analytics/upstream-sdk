@@ -183,7 +183,7 @@ class UpstreamClient:
             latitude=latitude,
             longitude=longitude,
             description=description,
-            **kwargs
+            start_date=datetime.now(),
         )
 
     def get_station(self, station_id: str, campaign_id: str) -> GetStationResponse:

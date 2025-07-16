@@ -51,7 +51,6 @@ class AuthManager:
         try:
             with ApiClient(self.configuration) as api_client:
                 auth_api = AuthApi(api_client)
-                print(self.config.username, self.config.password)
                 # Attempt login
                 response = auth_api.login_api_v1_token_post(
                     username=self.config.username,

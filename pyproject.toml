@@ -40,6 +40,7 @@ dependencies = [
     "typing-extensions>=4.0.0; python_version<'3.10'",
     "pydantic>=2.0.0",
     "urllib3>=1.25.3",
+    "upstream-api-client>=0.1.4"
 ]
 
 [project.optional-dependencies]

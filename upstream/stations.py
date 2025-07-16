@@ -5,6 +5,7 @@ This module handles creation, retrieval, and management of monitoring stations
 using the generated OpenAPI client.
 """
 
+from datetime import datetime
 from typing import Optional, Any
 
 from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
@@ -30,7 +31,7 @@ class StationManager:
     Manages station operations using the OpenAPI client.
     """
 
-    def __init__(self, auth_manager) -> None:
+    def __init__(self, auth_manager: Any) -> None:
         """
         Initialize station manager.
 
@@ -42,28 +43,14 @@ class StationManager:
     def create(
         self,
         campaign_id: str,
-        name: str,
-        latitude: float,
-        longitude: float,
-        description: Optional[str] = None,
-        contact_name: Optional[str] = None,
-        contact_email: Optional[str] = None,
-        altitude: Optional[float] = None,
-        **kwargs: Any,
-    ) -> CampaignCreateResponse:
+        station_create: StationCreate,
+    ) -> StationCreateResponse:
         """
         Create a new station.
 
         Args:
             campaign_id: Parent campaign ID
-            name: Station name
-            latitude: Station latitude
-            longitude: Station longitude
-            description: Station description
-            contact_name: Contact person name
-            contact_email: Contact email
-            altitude: Station altitude in meters
-            **kwargs: Additional station parameters
+            station_create: StationCreate model instance
 
         Returns:
             Created Station instance
@@ -72,40 +59,18 @@ class StationManager:
             ValidationError: If station data is invalid
             APIError: If creation fails
         """
-        # Validate required fields
         if not campaign_id:
             raise ValidationError("Campaign ID is required", field="campaign_id")
-        if not name or not name.strip():
-            raise ValidationError("Station name is required", field="name")
-        if not isinstance(latitude, (int, float)) or not (-90 <= latitude <= 90):
-            raise ValidationError("Latitude must be between -90 and 90", field="latitude")
-        if not isinstance(longitude, (int, float)) or not (-180 <= longitude <= 180):
-            raise ValidationError("Longitude must be between -180 and 180", field="longitude")
-
-        # Validate email if provided
-        if contact_email and "@" not in contact_email:
-            raise ValidationError("Invalid email format", field="contact_email")
-
-        # Create station input model
-        station_input = StationCreate(
-            name=name.strip(),
-            latitude=latitude,
-            longitude=longitude,
-            description=description,
-            contact_name=contact_name,
-            contact_email=contact_email,
-            altitude=altitude
-        )
+        if not isinstance(station_create, StationCreate):
+            raise ValidationError("station_create must be a StationCreate instance", field="station_create")
 
         try:
             campaign_id_int = int(campaign_id)
-
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
-
                 response = stations_api.create_station_api_v1_campaigns_campaign_id_stations_post(
                     campaign_id=campaign_id_int,
-                    station_create=station_input
+                    station_create=station_create
                 )
                 return response
 
@@ -208,53 +173,32 @@ class StationManager:
         except Exception as e:
             raise APIError(f"Failed to list stations: {e}")
 
-    def update(self, station_id: str, campaign_id: str, **kwargs: Any) -> StationCreateResponse:
+    def update(self, station_id: str, campaign_id: str, station_update: StationUpdate) -> StationCreateResponse:
         """
         Update station.
 
         Args:
             station_id: Station ID
             campaign_id: Campaign ID
-            **kwargs: Station fields to update
+            station_update: StationUpdate model instance
 
         Returns:
             Updated Station instance
 
         Raises:
-            ValidationError: If IDs are invalid or no update data provided
+            ValidationError: If IDs are invalid or station_update is not a StationUpdate
             APIError: If update fails
         """
         if not station_id:
             raise ValidationError("Station ID is required", field="station_id")
         if not campaign_id:
             raise ValidationError("Campaign ID is required", field="campaign_id")
-
-        # Remove None values
-        update_data = {k: v for k, v in kwargs.items() if v is not None}
-
-        if not update_data:
-            raise ValidationError("No update data provided")
-
-        # Validate coordinates if provided
-        if "latitude" in update_data:
-            lat = update_data["latitude"]
-            if not isinstance(lat, (int, float)) or not (-90 <= lat <= 90):
-                raise ValidationError("Latitude must be between -90 and 90", field="latitude")
-
-        if "longitude" in update_data:
-            lon = update_data["longitude"]
-            if not isinstance(lon, (int, float)) or not (-180 <= lon <= 180):
-                raise ValidationError("Longitude must be between -180 and 180", field="longitude")
-
-        # Validate email if provided
-        if "contact_email" in update_data and "@" not in update_data["contact_email"]:
-            raise ValidationError("Invalid email format", field="contact_email")
+        if not isinstance(station_update, StationUpdate):
+            raise ValidationError("station_update must be a StationUpdate instance", field="station_update")
 
         try:
             station_id_int = int(station_id)
             campaign_id_int = int(campaign_id)
-
-            station_update = StationUpdate(**update_data)
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
