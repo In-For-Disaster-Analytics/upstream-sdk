@@ -194,8 +194,6 @@ def test_upload_csv_files(client):
                 sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
                 assert len(sensors.items) == 0
 
-
-
         finally:
             # Clean up station
             client.stations.delete(station_id, campaign_id)
