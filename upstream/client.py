@@ -10,6 +10,10 @@ from typing import Optional, Dict, Any, List, Union, Tuple
 from pathlib import Path
 from datetime import datetime
 
+from upstream_api_client import MeasurementIn, MeasurementCreateResponse
+from upstream_api_client.models.list_measurements_response_pagination import ListMeasurementsResponsePagination
+from upstream_api_client.models.aggregated_measurement import AggregatedMeasurement
+from upstream_api_client.models.measurement_update import MeasurementUpdate
 from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
 from upstream_api_client.models.get_campaign_response import GetCampaignResponse
 from upstream_api_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
@@ -20,6 +24,7 @@ from .auth import AuthManager
 from .campaigns import CampaignManager
 from .stations import StationManager
 from .sensors import SensorManager
+from .measurements import MeasurementManager
 from .data import DataUploader
 from .ckan import CKANIntegration
 from .utils import ConfigManager, get_logger
@@ -73,6 +78,7 @@ class UpstreamClient:
         self.campaigns = CampaignManager(self.auth_manager)
         self.stations = StationManager(self.auth_manager)
         self.sensors = SensorManager(self.auth_manager)
+        self.measurements = MeasurementManager(self.auth_manager)
         self.data = DataUploader(self.auth_manager)
 
         # Initialize CKAN integration if URL provided
@@ -265,6 +271,76 @@ class UpstreamClient:
             sensors_file=sensors_file,
             measurements_file=measurements_file
         )
+
+    def create_measurement(self, campaign_id: str, station_id: str, sensor_id: str, measurement_in: MeasurementIn) -> MeasurementCreateResponse:
+        """Create a new measurement.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            sensor_id: Sensor ID
+            measurement_in: MeasurementIn model instance
+
+        Returns:
+            Created Measurement instance
+        """
+        return self.measurements.create(campaign_id, station_id, sensor_id, measurement_in)
+
+    def list_measurements(self, campaign_id: str, station_id: str, sensor_id: str, **kwargs: Any) -> ListMeasurementsResponsePagination:
+        """List measurements for a sensor.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            sensor_id: Sensor ID
+            **kwargs: Additional filtering parameters (start_date, end_date, min_measurement_value, etc.)
+
+        Returns:
+            List of Measurement instances
+        """
+        return self.measurements.list(campaign_id, station_id, sensor_id, **kwargs)
+
+    def get_measurements_with_confidence_intervals(self, campaign_id: str, station_id: str, sensor_id: str, **kwargs: Any) -> List[AggregatedMeasurement]:
+        """Get sensor measurements with confidence intervals for visualization.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            sensor_id: Sensor ID
+            **kwargs: Additional filtering parameters (interval, interval_value, start_date, etc.)
+
+        Returns:
+            List of AggregatedMeasurement instances with confidence intervals
+        """
+        return self.measurements.get_with_confidence_intervals(campaign_id, station_id, sensor_id, **kwargs)
+
+    def update_measurement(self, campaign_id: str, station_id: str, sensor_id: str, measurement_id: str, measurement_update: MeasurementUpdate) -> MeasurementCreateResponse:
+        """Update a measurement.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            sensor_id: Sensor ID
+            measurement_id: Measurement ID
+            measurement_update: MeasurementUpdate model instance
+
+        Returns:
+            Updated Measurement instance
+        """
+        return self.measurements.update(campaign_id, station_id, sensor_id, measurement_id, measurement_update)
+
+    def delete_measurements(self, campaign_id: str, station_id: str, sensor_id: str) -> bool:
+        """Delete all measurements for a sensor.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            sensor_id: Sensor ID
+
+        Returns:
+            True if deletion successful
+        """
+        return self.measurements.delete(campaign_id, station_id, sensor_id)
 
     def upload_chunked_csv_data(self, campaign_id: str, station_id: str,
                                sensors_file: Union[str, Path],
