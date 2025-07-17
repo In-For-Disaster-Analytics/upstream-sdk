@@ -28,6 +28,8 @@ from upstream_api_client.models.list_stations_response_pagination import (
 from upstream_api_client.models.measurement_update import MeasurementUpdate
 from upstream_api_client.models.station_create_response import StationCreateResponse
 
+from upstream.ckan import CKANIntegration
+
 from .auth import AuthManager
 from .campaigns import CampaignManager
 from .data import DataUploader
@@ -42,6 +44,10 @@ logger = get_logger(__name__)
 
 class UpstreamClient:
     """Main client class for interacting with the Upstream API."""
+
+    ckan: Optional[CKANIntegration]
+
+
 
     def __init__(
         self,
@@ -86,6 +92,14 @@ class UpstreamClient:
         self.sensors = SensorManager(self.auth_manager)
         self.measurements = MeasurementManager(self.auth_manager)
         self.data = DataUploader(self.auth_manager)
+
+        # Initialize CKAN integration if URL provided
+        if config.ckan_url:
+            self.ckan = CKANIntegration(
+                ckan_url=config.ckan_url, config=config.to_dict()
+            )
+        else:
+            self.ckan = None
 
         logger.info("Upstream client initialized successfully")
 
@@ -433,23 +447,23 @@ class UpstreamClient:
         """
         return self.data.get_file_info(file_path)
 
-    # def publish_to_ckan(self, campaign_id: str, **kwargs: Any) -> Dict[str, Any]:
-    #     """Publish campaign data to CKAN.
+    def publish_to_ckan(self, campaign_id: str, **kwargs: Any) -> Dict[str, Any]:
+        """Publish campaign data to CKAN.
 
-    #     Args:
-    #         campaign_id: Campaign ID
-    #         **kwargs: Additional CKAN parameters
+        Args:
+            campaign_id: Campaign ID
+            **kwargs: Additional CKAN parameters
 
-    #     Returns:
-    #         CKAN publication result
+        Returns:
+            CKAN publication result
 
-    #     Raises:
-    #         ConfigurationError: If CKAN integration not configured
-    #     """
-    #     if not self.ckan:
-    #         raise ConfigurationError("CKAN integration not configured")
+        Raises:
+            ConfigurationError: If CKAN integration not configured
+        """
+        if not self.ckan:
+            raise ConfigurationError("CKAN integration not configured")
 
-    #     return self.ckan.publish_campaign(campaign_id=campaign_id, **kwargs)
+        return self.ckan.publish_campaign(campaign_id=campaign_id, **kwargs)
 
     def logout(self) -> None:
         """Logout and invalidate authentication."""

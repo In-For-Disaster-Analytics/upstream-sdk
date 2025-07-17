@@ -9,6 +9,7 @@ from .auth import AuthManager
 from .campaigns import CampaignManager
 from .client import UpstreamClient
 from .data import DataUploader, DataValidator
+from .ckan import CKANIntegration
 from .exceptions import (
     APIError,
     AuthenticationError,
