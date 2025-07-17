@@ -152,8 +152,25 @@ class CKANIntegration:
         # Get current dataset
         current_dataset = self.get_dataset(dataset_id)
 
+        # Only include updatable fields to avoid 400 BAD REQUEST errors
+        # Read-only fields that should be excluded from updates
+        read_only_fields = {
+            'revision_id', 'revision_timestamp', 'metadata_created', 'metadata_modified',
+            'creator_user_id', 'num_resources', 'num_tags', 'relationships_as_subject',
+            'relationships_as_object', 'tracking_summary', 'organization', 'groups',
+            'isopen', 'url', 'ckan_url', 'download_url', 'revision_timestamp',
+            'id', 'type', 'state', 'license_id', 'license_title', 'license_url',
+            'maintainer', 'maintainer_email', 'author', 'author_email'
+        }
+
+        # Create clean dataset data with only updatable fields
+        updatable_data = {
+            k: v for k, v in current_dataset.items()
+            if k not in read_only_fields and v is not None
+        }
+
         # Update with new values
-        updated_data = {**current_dataset, **kwargs}
+        updated_data = {**updatable_data, **kwargs}
 
         try:
             response = self.session.post(
@@ -164,7 +181,8 @@ class CKANIntegration:
             result = response.json()
 
             if not result.get("success"):
-                raise APIError(f"CKAN dataset update failed: {result.get('error')}")
+                error_details = result.get('error', {})
+                raise APIError(f"CKAN dataset update failed: {error_details}")
 
             dataset = result["result"]
             logger.info(f"Updated CKAN dataset: {dataset['name']}")
@@ -172,7 +190,15 @@ class CKANIntegration:
             return dataset
 
         except requests.exceptions.RequestException as e:
-            raise APIError(f"Failed to update CKAN dataset: {e}")
+            # Log the response content for debugging
+            error_msg = f"Failed to update CKAN dataset: {e}"
+            if hasattr(e, 'response') and e.response is not None:
+                try:
+                    error_content = e.response.json()
+                    error_msg += f" - Response: {error_content}"
+                except:
+                    error_msg += f" - Response text: {e.response.text[:500]}"
+            raise APIError(error_msg)
 
     def delete_dataset(self, dataset_id: str) -> bool:
         """
@@ -382,7 +408,7 @@ class CKANIntegration:
         # Prepare dataset metadata
         dataset_metadata = {
             "name": dataset_name,
-            "title": self.sanitize_title(dataset_title),
+            "title": dataset_title,
             "notes": description,
             "tags": ["environmental", "sensors", "upstream"],
             "extras": [
