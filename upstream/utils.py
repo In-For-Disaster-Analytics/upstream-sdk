@@ -249,54 +249,6 @@ def setup_logging(
     logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 
-def retry_with_backoff(
-    func: callable,
-    max_retries: int = 3,
-    base_delay: float = 1.0,
-    max_delay: float = 60.0,
-    backoff_factor: float = 2.0,
-) -> Any:
-    """
-    Retry function with exponential backoff.
-
-    Args:
-        func: Function to retry
-        max_retries: Maximum number of retries
-        base_delay: Initial delay in seconds
-        max_delay: Maximum delay in seconds
-        backoff_factor: Backoff multiplier
-
-    Returns:
-        Function result
-    """
-    import random
-    import time
-
-    last_exception = None
-
-    for attempt in range(max_retries + 1):
-        try:
-            return func()
-        except Exception as e:
-            last_exception = e
-
-            if attempt == max_retries:
-                break
-
-            # Calculate delay with exponential backoff and jitter
-            delay = min(base_delay * (backoff_factor**attempt), max_delay)
-            jitter = random.uniform(0, delay * 0.1)
-            total_delay = delay + jitter
-
-            logger.warning(
-                f"Attempt {attempt + 1} failed: {e}. Retrying in {total_delay:.2f} seconds..."
-            )
-            time.sleep(total_delay)
-
-    # If we get here, all retries failed
-    raise last_exception
-
-
 def validate_file_size(file_path: Union[str, Path], max_size_mb: int = 100) -> bool:
     """
     Validate file size.

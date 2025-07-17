@@ -52,6 +52,9 @@ class AuthManager:
             with ApiClient(self.configuration) as api_client:
                 auth_api = AuthApi(api_client)
                 # Attempt login
+                if self.config.username is None or self.config.password is None:
+                    raise AuthenticationError("Username and password are required")
+
                 response = auth_api.login_api_v1_token_post(
                     username=self.config.username,
                     password=self.config.password,

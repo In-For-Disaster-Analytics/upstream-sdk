@@ -8,6 +8,8 @@ that can occur when interacting with the Upstream API and CKAN platform.
 import logging
 from typing import Any, Dict, Optional
 
+from upstream_api_client import ApiException
+
 logger = logging.getLogger(__name__)
 
 
@@ -141,7 +143,7 @@ class CKANError(UpstreamError):
         self.ckan_error_type = ckan_error_type
 
 
-def handle_openapi_exception(api_exception) -> UpstreamError:
+def handle_openapi_exception(api_exception: ApiException) -> UpstreamError:
     """Convert OpenAPI ApiException to appropriate SDK exception.
 
     Args:
@@ -151,11 +153,6 @@ def handle_openapi_exception(api_exception) -> UpstreamError:
         Appropriate SDK exception
     """
     try:
-        from upstream_api_client.rest import ApiException
-
-        if not isinstance(api_exception, ApiException):
-            return APIError(f"Unknown API error: {api_exception}")
-
         status_code = api_exception.status
         reason = api_exception.reason
         headers = getattr(api_exception, "headers", {})
