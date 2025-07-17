@@ -5,7 +5,7 @@ This module handles retrieval and management of sensors
 using the generated OpenAPI client.
 """
 
-from typing import Optional, Any, Union, Tuple, Dict
+from typing import Optional, Any, Union, Tuple, Dict, List
 from pathlib import Path
 
 from upstream_api_client.api import SensorsApi, UploadfileCsvApi
@@ -250,16 +250,19 @@ class SensorManager:
         campaign_id: str,
         station_id: str,
         sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
-        measurements_file: Union[str, Path, bytes, Tuple[str, bytes]]
+        measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
+        chunk_size: int = 1000
     ) -> Dict[str, object]:
         """
         Upload sensor and measurement CSV files to process and store data in the database.
+        Measurements are uploaded in chunks to avoid HTTP timeouts with large files.
 
         Args:
             campaign_id: Campaign ID
             station_id: Station ID
             sensors_file: File path, bytes, or tuple (filename, bytes) containing sensor metadata
             measurements_file: File path, bytes, or tuple (filename, bytes) containing measurement data
+            chunk_size: Number of measurement lines per chunk (default: 1000)
 
         Returns:
             Response from the upload API containing processing results
@@ -305,22 +308,31 @@ class SensorManager:
             campaign_id_int = int(campaign_id)
             station_id_int = int(station_id)
 
-            # Convert file inputs to the expected format
+            # Convert sensors file input to the expected format
             upload_file_sensors = self._prepare_file_input(sensors_file, "sensors")
-            upload_file_measurements = self._prepare_file_input(measurements_file, "measurements")
+
+            # Process measurements file in chunks
+            measurements_chunks = self._split_measurements_file(measurements_file, chunk_size)
+
+            all_responses = []
 
             with self.auth_manager.get_api_client() as api_client:
                 upload_api = UploadfileCsvApi(api_client)
 
-                response = upload_api.post_sensor_and_measurement_api_v1_uploadfile_csv_campaign_campaign_id_station_station_id_sensor_post(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
-                    upload_file_sensors=upload_file_sensors,
-                    upload_file_measurements=upload_file_measurements
-                )
+                for i, chunk in enumerate(measurements_chunks):
+                    logger.info(f"Uploading measurements chunk {i + 1}/{len(measurements_chunks)} ({len(chunk)} lines)")
 
-                logger.info(f"Successfully uploaded CSV files for campaign {campaign_id}, station {station_id}")
-                return response
+                    response = upload_api.post_sensor_and_measurement_api_v1_uploadfile_csv_campaign_campaign_id_station_station_id_sensor_post(
+                        campaign_id=campaign_id_int,
+                        station_id=station_id_int,
+                        upload_file_sensors=upload_file_sensors,  # Always upload sensors file
+                        upload_file_measurements=chunk
+                    )
+
+                    all_responses.append(response)
+
+                logger.info(f"Successfully uploaded {len(measurements_chunks)} measurement chunks for campaign {campaign_id}, station {station_id}")
+                return all_responses[-1] if all_responses else {}
 
         except ValueError as exc:
             raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}") from exc
@@ -331,6 +343,83 @@ class SensorManager:
                 raise APIError(f"Failed to upload CSV files: {e}", status_code=e.status) from e
         except Exception as e:
             raise APIError(f"Failed to upload CSV files: {e}") from e
+
+    def _split_measurements_file(
+        self,
+        measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
+        chunk_size: int
+    ) -> List[Tuple[str, bytes]]:
+        """
+        Split measurements file into chunks for upload.
+
+        Args:
+            measurements_file: File path, bytes, or tuple (filename, bytes) containing measurement data
+            chunk_size: Number of lines per chunk (excluding header)
+
+        Returns:
+            List of tuples (filename, bytes) for each chunk
+
+        Raises:
+            ValidationError: If file cannot be read or is invalid
+        """
+        try:
+            # Get the file content
+            if isinstance(measurements_file, (str, Path)):
+                file_path = Path(measurements_file)
+                if not file_path.exists():
+                    raise ValidationError(f"Measurements file not found: {measurements_file}")
+
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                original_filename = file_path.name
+
+            elif isinstance(measurements_file, bytes):
+                lines = measurements_file.decode('utf-8').splitlines(keepends=True)
+                original_filename = "measurements.csv"
+
+            elif isinstance(measurements_file, tuple) and len(measurements_file) == 2:
+                filename, content = measurements_file
+                if not isinstance(filename, str) or not isinstance(content, bytes):
+                    raise ValidationError("Invalid measurements file tuple format: expected (str, bytes)")
+                lines = content.decode('utf-8').splitlines(keepends=True)
+                original_filename = filename
+
+            else:
+                raise ValidationError("Invalid measurements file format: expected path, bytes, or (filename, bytes) tuple")
+
+            if not lines:
+                raise ValidationError("Measurements file is empty")
+
+            # Ensure we have a header
+            header = lines[0]
+            data_lines = lines[1:]
+
+            if not data_lines:
+                return [('', b'')]
+
+            # Split data lines into chunks
+            chunks = []
+            for i in range(0, len(data_lines), chunk_size):
+                chunk_data_lines = data_lines[i:i + chunk_size]
+
+                # Create chunk content with header + data lines
+                chunk_content = header + ''.join(chunk_data_lines)
+                chunk_bytes = chunk_content.encode('utf-8')
+
+                # Create filename for this chunk
+                base_name = Path(original_filename).stem
+                extension = Path(original_filename).suffix
+                chunk_filename = f"{base_name}_chunk_{i//chunk_size + 1}{extension}"
+
+                chunks.append((chunk_filename, chunk_bytes))
+
+            logger.info(f"Split measurements file into {len(chunks)} chunks of {chunk_size} lines each")
+            return chunks
+
+        except (OSError, IOError) as e:
+            raise ValidationError(f"Failed to read measurements file: {e}") from e
+        except UnicodeDecodeError as e:
+            raise ValidationError(f"Failed to decode measurements file (must be UTF-8): {e}") from e
 
     def _prepare_file_input(
         self,

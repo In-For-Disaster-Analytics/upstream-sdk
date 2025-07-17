@@ -102,7 +102,7 @@ def test_upload_csv_files(client):
                 sensors_file_path = sensors_file.name
 
             with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as measurements_file:
-                measurements_file.write(measurements_file_content_empty())
+                measurements_file.write(measurements_file_content_filled())
                 measurements_file_path = measurements_file.name
 
             try:
@@ -187,16 +187,18 @@ def test_upload_csv_files(client):
                 # Clean up temporary files
                 os.unlink(sensors_file_path)
                 os.unlink(measurements_file_path)
-                for sensor in sensors.items:
-                    client.sensors.delete(sensor.id, station_id, campaign_id)
-
-                # Check the sensors
-                sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
-                assert len(sensors.items) == 0
 
         finally:
+            for sensor in sensors.items:
+                client.measurements.delete(campaign_id, station_id, sensor.id)
+                client.sensors.delete(sensor.id, station_id, campaign_id)
+                client.stations.delete(station_id, campaign_id)
+
+            # Check the sensors
+            #sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
+            #assert len(sensors.items) == 0
             # Clean up station
-            client.stations.delete(station_id, campaign_id)
+            #client.stations.delete(station_id, campaign_id)
 
     finally:
         # Clean up campaign

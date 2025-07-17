@@ -227,16 +227,19 @@ class UpstreamClient:
 
     def upload_sensor_measurement_files(self, campaign_id: str, station_id: str,
                                       sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
-                                      measurements_file: Union[str, Path, bytes, Tuple[str, bytes]]) -> Dict[str, object]:
+                                      measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
+                                      chunk_size: int = 1000) -> Dict[str, object]:
         """Upload sensor and measurement CSV files to process and store data in the database.
 
         This method uses the direct API endpoint for processing sensor and measurement files.
+        Measurements are uploaded in chunks to avoid HTTP timeouts with large files.
 
         Args:
             campaign_id: Campaign ID
             station_id: Station ID
             sensors_file: File path, bytes, or tuple (filename, bytes) containing sensor metadata
             measurements_file: File path, bytes, or tuple (filename, bytes) containing measurement data
+            chunk_size: Number of measurement lines per chunk (default: 1000)
 
         Returns:
             Response from the upload API containing processing results
@@ -269,7 +272,8 @@ class UpstreamClient:
             campaign_id=campaign_id,
             station_id=station_id,
             sensors_file=sensors_file,
-            measurements_file=measurements_file
+            measurements_file=measurements_file,
+            chunk_size=chunk_size
         )
 
     def create_measurement(self, campaign_id: str, station_id: str, sensor_id: str, measurement_in: MeasurementIn) -> MeasurementCreateResponse:
