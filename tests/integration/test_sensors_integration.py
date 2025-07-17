@@ -6,13 +6,13 @@ Set UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables.
 """
 
 import os
-import pytest
 import tempfile
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
 
 from upstream import UpstreamClient
-
 
 BASE_URL = "http://localhost:8000"
 CKAN_URL = "http://ckan.tacc.cloud:5000"
@@ -67,7 +67,7 @@ def measurements_file_content_filled():
 def test_upload_csv_files(client):
     """Test uploading sensor and measurement CSV files."""
     # Create a campaign first
-    from upstream_api_client.models import CampaignsIn, Point, Coordinates
+    from upstream_api_client.models import CampaignsIn, Coordinates, Point
 
     campaign_data = CampaignsIn(
         name="Test Campaign for CSV Upload",

@@ -5,19 +5,14 @@ This package provides a standardized toolkit for environmental researchers and o
 to interact with the Upstream API and CKAN data portals.
 """
 
-from .client import UpstreamClient
 from .auth import AuthManager
 from .campaigns import CampaignManager
-from .stations import StationManager
-from .data import DataUploader, DataValidator
 from .ckan import CKANIntegration
-from .exceptions import (
-    UpstreamError,
-    AuthenticationError,
-    ValidationError,
-    UploadError,
-    APIError,
-)
+from .client import UpstreamClient
+from .data import DataUploader, DataValidator
+from .exceptions import (APIError, AuthenticationError, UploadError,
+                         UpstreamError, ValidationError)
+from .stations import StationManager
 
 __version__ = "1.0.0"
 __author__ = "In-For-Disaster-Analytics Team"

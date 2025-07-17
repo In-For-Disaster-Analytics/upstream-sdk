@@ -2,15 +2,15 @@
 Authentication manager for Upstream SDK using OpenAPI client.
 """
 
-from typing import Optional, Dict, Any
 import logging
 from datetime import datetime, timedelta
+from typing import Any, Dict, Optional
 
-from upstream_api_client import Configuration, ApiClient
+from upstream_api_client import ApiClient, Configuration
 from upstream_api_client.api import AuthApi
 from upstream_api_client.rest import ApiException
 
-from .exceptions import AuthenticationError, NetworkError, ConfigurationError
+from .exceptions import AuthenticationError, ConfigurationError, NetworkError
 from .utils import ConfigManager
 
 logger = logging.getLogger(__name__)

@@ -5,17 +5,14 @@ This module handles creation, retrieval, and management of sensor measurements
 using the generated OpenAPI client.
 """
 
-from typing import Optional, Any, List
 from datetime import datetime
+from typing import Any, List, Optional
 
 from upstream_api_client.api import MeasurementsApi
-from upstream_api_client.models import (
-    MeasurementIn,
-    MeasurementUpdate,
-    MeasurementCreateResponse,
-    ListMeasurementsResponsePagination,
-    AggregatedMeasurement,
-)
+from upstream_api_client.models import (AggregatedMeasurement,
+                                        ListMeasurementsResponsePagination,
+                                        MeasurementCreateResponse,
+                                        MeasurementIn, MeasurementUpdate)
 from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager

@@ -5,15 +5,15 @@ This module handles data validation and upload operations using the generated Op
 """
 
 import csv
-from typing import Dict, Any, List, Union, Tuple
 from pathlib import Path
+from typing import Any, Dict, List, Tuple, Union
 
 from upstream_api_client.api import UploadfileCsvApi
 from upstream_api_client.rest import ApiException
 
-from .exceptions import ValidationError, UploadError
-from .utils import ConfigManager, validate_file_size, chunk_file, get_logger
 from .auth import AuthManager
+from .exceptions import UploadError, ValidationError
+from .utils import ConfigManager, chunk_file, get_logger, validate_file_size
 
 logger = get_logger(__name__)
 

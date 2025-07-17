@@ -6,12 +6,12 @@ Set UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables.
 """
 
 import os
-import pytest
 from datetime import datetime, timedelta
 
-from upstream import UpstreamClient
+import pytest
 from upstream_api_client.models import MeasurementIn, MeasurementUpdate
 
+from upstream import UpstreamClient
 
 # Test configuration
 BASE_URL = "http://localhost:8000"

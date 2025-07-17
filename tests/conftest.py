@@ -2,24 +2,21 @@
 Pytest configuration and fixtures for Upstream SDK tests.
 """
 
-import pytest
-from unittest.mock import Mock, patch
-from pathlib import Path
-import tempfile
-import json
 import csv
+import json
+import tempfile
+from pathlib import Path
+from unittest.mock import Mock, patch
 
-from upstream.client import UpstreamClient
+import pytest
+from upstream_api_client.models import (CampaignsIn, GetCampaignResponse,
+                                        GetStationResponse,
+                                        ListStationsResponsePagination,
+                                        StationCreate, StationCreateResponse)
+
 from upstream.auth import AuthManager
+from upstream.client import UpstreamClient
 from upstream.utils import ConfigManager
-from upstream_api_client.models import (
-    CampaignsIn,
-    StationCreate,
-    GetCampaignResponse,
-    GetStationResponse,
-    StationCreateResponse,
-    ListStationsResponsePagination,
-)
 
 
 @pytest.fixture

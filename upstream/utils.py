@@ -2,12 +2,12 @@
 Utility functions and classes for Upstream SDK.
 """
 
-import os
 import json
-from typing import Dict, Any, Optional, Union
-from pathlib import Path
 import logging
+import os
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, Optional, Union
 
 import yaml
 
@@ -269,8 +269,8 @@ def retry_with_backoff(
     Returns:
         Function result
     """
-    import time
     import random
+    import time
 
     last_exception = None
 

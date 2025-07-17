@@ -4,13 +4,14 @@ Integration tests for sensor CSV upload with chunked measurements.
 
 import os
 import tempfile
-import pytest
-from pathlib import Path
 from datetime import datetime, timedelta
+from pathlib import Path
+
+import pytest
+from upstream_api_client.models import CampaignsIn, StationCreate
 
 from upstream import UpstreamClient
-from upstream.exceptions import ValidationError, APIError
-from upstream_api_client.models import CampaignsIn, StationCreate
+from upstream.exceptions import APIError, ValidationError
 
 # Integration test configuration
 BASE_URL = "http://localhost:8000"

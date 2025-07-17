@@ -3,12 +3,13 @@ Unit tests for sensor chunking functionality.
 """
 
 import tempfile
-import pytest
 from pathlib import Path
 from unittest.mock import Mock
 
-from upstream.data import DataUploader
+import pytest
+
 from upstream.auth import AuthManager
+from upstream.data import DataUploader
 from upstream.exceptions import ValidationError
 
 

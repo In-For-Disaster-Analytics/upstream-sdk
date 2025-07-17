@@ -6,36 +6,38 @@ and CKAN data platform using the OpenAPI client.
 """
 
 import os
-from typing import Optional, Dict, Any, List, Union, Tuple
-from pathlib import Path
 from datetime import datetime
+from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from upstream_api_client import MeasurementIn, MeasurementCreateResponse
-from upstream_api_client.models.list_measurements_response_pagination import (
-    ListMeasurementsResponsePagination,
-)
-from upstream_api_client.models.aggregated_measurement import AggregatedMeasurement
-from upstream_api_client.models.measurement_update import MeasurementUpdate
-from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
-from upstream_api_client.models.get_campaign_response import GetCampaignResponse
-from upstream_api_client.models.list_campaigns_response_pagination import (
-    ListCampaignsResponsePagination,
-)
-from upstream_api_client.models.station_create_response import StationCreateResponse
+from upstream_api_client import MeasurementCreateResponse, MeasurementIn
+from upstream_api_client.models import CampaignsIn, StationCreate
+from upstream_api_client.models.aggregated_measurement import \
+    AggregatedMeasurement
+from upstream_api_client.models.campaign_create_response import \
+    CampaignCreateResponse
+from upstream_api_client.models.get_campaign_response import \
+    GetCampaignResponse
 from upstream_api_client.models.get_station_response import GetStationResponse
-from upstream_api_client.models.list_stations_response_pagination import (
-    ListStationsResponsePagination,
-)
+from upstream_api_client.models.list_campaigns_response_pagination import \
+    ListCampaignsResponsePagination
+from upstream_api_client.models.list_measurements_response_pagination import \
+    ListMeasurementsResponsePagination
+from upstream_api_client.models.list_stations_response_pagination import \
+    ListStationsResponsePagination
+from upstream_api_client.models.measurement_update import MeasurementUpdate
+from upstream_api_client.models.station_create_response import \
+    StationCreateResponse
+
 from .auth import AuthManager
 from .campaigns import CampaignManager
-from .stations import StationManager
-from .sensors import SensorManager
-from .measurements import MeasurementManager
-from .data import DataUploader
 from .ckan import CKANIntegration
-from .utils import ConfigManager, get_logger
+from .data import DataUploader
 from .exceptions import ConfigurationError
-from upstream_api_client.models import CampaignsIn, StationCreate
+from .measurements import MeasurementManager
+from .sensors import SensorManager
+from .stations import StationManager
+from .utils import ConfigManager, get_logger
 
 logger = get_logger(__name__)
 

@@ -1,13 +1,11 @@
 import os
-import pytest
 from datetime import datetime, timedelta
+
+import pytest
+from upstream_api_client.models import (CampaignsIn, StationCreate,
+                                        StationUpdate)
+
 from upstream.client import UpstreamClient
-from upstream_api_client.models import (
-    CampaignsIn,
-    CampaignUpdate,
-    StationCreate,
-    StationUpdate,
-)
 from upstream.exceptions import APIError
 
 BASE_URL = "http://localhost:8000"

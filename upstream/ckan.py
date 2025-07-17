@@ -2,10 +2,10 @@
 CKAN integration for Upstream SDK.
 """
 
-from typing import Dict, Any, List, Optional, Union, BinaryIO
 import logging
 import os
 from pathlib import Path
+from typing import Any, BinaryIO, Dict, List, Optional, Union
 
 import requests
 

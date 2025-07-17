@@ -5,22 +5,19 @@ This module handles retrieval and management of sensors
 using the generated OpenAPI client.
 """
 
-from typing import Optional, Any, Union, Tuple, Dict, List
 from pathlib import Path
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from upstream_api_client.api import SensorsApi, UploadfileCsvApi
-from upstream_api_client.models import (
-    SensorUpdate,
-    GetSensorResponse,
-    SensorCreateResponse,
-    ListSensorsResponsePagination,
-)
+from upstream_api_client.models import (GetSensorResponse,
+                                        ListSensorsResponsePagination,
+                                        SensorCreateResponse, SensorUpdate)
 from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager
+from .data import DataUploader
 from .exceptions import APIError, ValidationError
 from .utils import get_logger
-from .data import DataUploader
 
 logger = get_logger(__name__)
 

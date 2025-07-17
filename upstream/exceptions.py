@@ -5,8 +5,8 @@ This module defines custom exception classes for different error conditions
 that can occur when interacting with the Upstream API and CKAN platform.
 """
 
-from typing import Optional, Any, Dict
 import logging
+from typing import Any, Dict, Optional
 
 logger = logging.getLogger(__name__)
 
