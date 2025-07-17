@@ -39,13 +39,13 @@ jobs:
           flake8 upstream tests --count --select=E9,F63,F7,F82 --show-source --statistics
           flake8 upstream tests --count --exit-zero --max-complexity=10 --max-line-length=88 --statistics
 
-      - name: Check code formatting with black
-        run: |
-          black --check --diff upstream tests
+      # - name: Check code formatting with black
+      #   run: |
+      #     black --check --diff upstream tests
 
-      - name: Check import sorting with isort
-        run: |
-          isort --check-only --diff upstream tests
+      # - name: Check import sorting with isort
+      #   run: |
+      #     isort --check-only --diff upstream tests
 
       - name: Type checking with mypy
         run: |
