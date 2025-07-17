@@ -14,31 +14,32 @@ from datetime import datetime, timedelta
 from upstream import UpstreamClient
 
 
-BASE_URL = 'http://localhost:8000'
-CKAN_URL = 'http://ckan.tacc.cloud:5000'
+BASE_URL = "http://localhost:8000"
+CKAN_URL = "http://ckan.tacc.cloud:5000"
 
-USERNAME = os.environ.get('UPSTREAM_USERNAME')
-PASSWORD = os.environ.get('UPSTREAM_PASSWORD')
+USERNAME = os.environ.get("UPSTREAM_USERNAME")
+PASSWORD = os.environ.get("UPSTREAM_PASSWORD")
+
 
 @pytest.fixture
 def client():
     """Create authenticated client for testing."""
-    username = os.environ.get('UPSTREAM_USERNAME')
-    password = os.environ.get('UPSTREAM_PASSWORD')
+    username = os.environ.get("UPSTREAM_USERNAME")
+    password = os.environ.get("UPSTREAM_PASSWORD")
 
     if not username or not password:
-        pytest.skip("UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables required")
+        pytest.skip(
+            "UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables required"
+        )
 
     client = UpstreamClient(
-        username=username,
-        password=password,
-        base_url=BASE_URL,
-        ckan_url=CKAN_URL
+        username=username, password=password, base_url=BASE_URL, ckan_url=CKAN_URL
     )
 
     # Ensure authentication
     assert client.authenticate(), "Authentication failed"
     return client
+
 
 def sensor_file_content():
     """Create temporary CSV files for testing."""
@@ -48,9 +49,11 @@ humidity_01,Relative Humidity,%,True,humidity_correction_script
 pressure_01,Atmospheric Pressure,hPa,True,pressure_correction_script
 wind_speed_01,Wind Speed,m/s,True,wind_correction_script"""
 
+
 def measurements_file_content_empty():
     """Create temporary CSV files for testing."""
     return """collectiontime,Lat_deg,Lon_deg,temp_sensor_01,humidity_01,pressure_01,wind_speed_01\n"""
+
 
 def measurements_file_content_filled():
     """Create temporary CSV files for testing."""
@@ -73,7 +76,7 @@ def test_upload_csv_files(client):
         contact_email="integration@example.com",
         allocation="TACC",
         start_date=datetime.now(),
-        end_date=datetime.now() + timedelta(days=30)
+        end_date=datetime.now() + timedelta(days=30),
     )
 
     campaign = client.create_campaign(campaign_data)
@@ -89,7 +92,7 @@ def test_upload_csv_files(client):
             contact_name="Station Tester",
             contact_email="station@example.com",
             start_date=datetime.now(),
-            active=True
+            active=True,
         )
 
         station = client.create_station(campaign_id, station_data)
@@ -97,11 +100,15 @@ def test_upload_csv_files(client):
 
         try:
             # Create temporary CSV files for testing using the correct format
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as sensors_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as sensors_file:
                 sensors_file.write(sensor_file_content())
                 sensors_file_path = sensors_file.name
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as measurements_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as measurements_file:
                 measurements_file.write(measurements_file_content_filled())
                 measurements_file_path = measurements_file.name
 
@@ -111,7 +118,7 @@ def test_upload_csv_files(client):
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=sensors_file_path,
-                    measurements_file=measurements_file_path
+                    measurements_file=measurements_file_path,
                 )
 
                 # Verify the upload was successful
@@ -119,39 +126,45 @@ def test_upload_csv_files(client):
                 print(f"Upload result: {result}")
 
                 # Test upload using bytes
-                with open(sensors_file_path, 'rb') as f:
+                with open(sensors_file_path, "rb") as f:
                     sensors_bytes = f.read()
-                with open(measurements_file_path, 'rb') as f:
+                with open(measurements_file_path, "rb") as f:
                     measurements_bytes = f.read()
 
                 result_bytes = client.upload_sensor_measurement_files(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=sensors_bytes,
-                    measurements_file=measurements_bytes
+                    measurements_file=measurements_bytes,
                 )
 
-                assert isinstance(result_bytes, dict), "Upload with bytes should return a dictionary"
+                assert isinstance(
+                    result_bytes, dict
+                ), "Upload with bytes should return a dictionary"
                 print(f"Upload with bytes result: {result_bytes}")
 
                 # Test upload using tuple (filename, bytes)
-                with open(sensors_file_path, 'rb') as f:
+                with open(sensors_file_path, "rb") as f:
                     sensors_bytes = f.read()
-                with open(measurements_file_path, 'rb') as f:
+                with open(measurements_file_path, "rb") as f:
                     measurements_bytes = f.read()
 
                 result_tuple = client.upload_sensor_measurement_files(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=("sensors.csv", sensors_bytes),
-                    measurements_file=("measurements.csv", measurements_bytes)
+                    measurements_file=("measurements.csv", measurements_bytes),
                 )
 
-                assert isinstance(result_tuple, dict), "Upload with tuple should return a dictionary"
+                assert isinstance(
+                    result_tuple, dict
+                ), "Upload with tuple should return a dictionary"
                 print(f"Upload with tuple result: {result_tuple}")
 
                 # Get all the sensors
-                sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
+                sensors = client.sensors.list(
+                    campaign_id=campaign_id, station_id=station_id
+                )
                 assert len(sensors.items) > 0
                 print(f"Sensors: {sensors.items}")
 
@@ -177,8 +190,9 @@ def test_upload_csv_files(client):
                 all_postprocesses = [sensor.postprocess for sensor in sensors.items]
                 assert all(postprocess is True for postprocess in all_postprocesses)
 
-
-                all_postprocessscripts = [sensor.postprocessscript for sensor in sensors.items]
+                all_postprocessscripts = [
+                    sensor.postprocessscript for sensor in sensors.items
+                ]
                 assert "wind_correction_script" in all_postprocessscripts
                 assert "humidity_correction_script" in all_postprocessscripts
                 assert "pressure_correction_script" in all_postprocessscripts
@@ -198,10 +212,10 @@ def test_upload_csv_files(client):
             client.stations.delete(station_id, campaign_id)
 
             # Check the sensors
-            #sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
-            #assert len(sensors.items) == 0
+            # sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
+            # assert len(sensors.items) == 0
             # Clean up station
-            #client.stations.delete(station_id, campaign_id)
+            # client.stations.delete(station_id, campaign_id)
 
     finally:
         # Clean up campaign

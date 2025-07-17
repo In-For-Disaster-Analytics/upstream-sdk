@@ -23,8 +23,8 @@ class DataValidator:
     Validates data formats for Upstream API.
     """
 
-    REQUIRED_SENSOR_FIELDS = ['alias', 'variablename', 'units']
-    REQUIRED_MEASUREMENT_FIELDS = ['collectiontime', 'Lat_deg', 'Lon_deg']
+    REQUIRED_SENSOR_FIELDS = ["alias", "variablename", "units"]
+    REQUIRED_MEASUREMENT_FIELDS = ["collectiontime", "Lat_deg", "Lon_deg"]
 
     def __init__(self, config: ConfigManager) -> None:
         """
@@ -57,20 +57,20 @@ class DataValidator:
                     errors.append(f"Row {i+1}: Missing required field '{field}'")
 
             # Validate alias format
-            if 'alias' in sensor and not isinstance(sensor['alias'], str):
+            if "alias" in sensor and not isinstance(sensor["alias"], str):
                 errors.append(f"Row {i+1}: 'alias' must be a string")
 
             # Validate units
-            if 'units' in sensor and not isinstance(sensor['units'], str):
+            if "units" in sensor and not isinstance(sensor["units"], str):
                 errors.append(f"Row {i+1}: 'units' must be a string")
 
         if errors:
             raise ValidationError(f"Sensor data validation failed: {'; '.join(errors)}")
 
         return {
-            'valid': True,
-            'sensor_count': len(data),
-            'message': f'Validated {len(data)} sensors'
+            "valid": True,
+            "sensor_count": len(data),
+            "message": f"Validated {len(data)} sensors",
         }
 
     def validate_measurements_data(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
@@ -95,39 +95,44 @@ class DataValidator:
                     errors.append(f"Row {i+1}: Missing required field '{field}'")
 
             # Validate coordinates
-            if 'Lat_deg' in measurement:
+            if "Lat_deg" in measurement:
                 try:
-                    lat = float(measurement['Lat_deg'])
+                    lat = float(measurement["Lat_deg"])
                     if not (-90 <= lat <= 90):
                         errors.append(f"Row {i+1}: Latitude must be between -90 and 90")
                 except (ValueError, TypeError):
                     errors.append(f"Row {i+1}: Invalid latitude value")
 
-            if 'Lon_deg' in measurement:
+            if "Lon_deg" in measurement:
                 try:
-                    lon = float(measurement['Lon_deg'])
+                    lon = float(measurement["Lon_deg"])
                     if not (-180 <= lon <= 180):
-                        errors.append(f"Row {i+1}: Longitude must be between -180 and 180")
+                        errors.append(
+                            f"Row {i+1}: Longitude must be between -180 and 180"
+                        )
                 except (ValueError, TypeError):
                     errors.append(f"Row {i+1}: Invalid longitude value")
 
             # Validate timestamp format
-            if 'collectiontime' in measurement:
-                timestamp = measurement['collectiontime']
+            if "collectiontime" in measurement:
+                timestamp = measurement["collectiontime"]
                 if not isinstance(timestamp, str):
                     errors.append(f"Row {i+1}: 'collectiontime' must be a string")
 
         if errors:
-            raise ValidationError(f"Measurement data validation failed: {'; '.join(errors)}")
+            raise ValidationError(
+                f"Measurement data validation failed: {'; '.join(errors)}"
+            )
 
         return {
-            'valid': True,
-            'measurement_count': len(data),
-            'message': f'Validated {len(data)} measurements'
+            "valid": True,
+            "measurement_count": len(data),
+            "message": f"Validated {len(data)} measurements",
         }
 
-    def validate_csv_file(self, file_path: Union[str, Path],
-                         file_type: str = 'measurements') -> Dict[str, Any]:
+    def validate_csv_file(
+        self, file_path: Union[str, Path], file_type: str = "measurements"
+    ) -> Dict[str, Any]:
         """
         Validate CSV file format.
 
@@ -147,18 +152,20 @@ class DataValidator:
             raise ValidationError(f"File not found: {file_path}")
 
         if not validate_file_size(file_path, self.config.max_chunk_size_mb):
-            raise ValidationError(f"File size exceeds maximum limit: {self.config.max_chunk_size_mb}MB")
+            raise ValidationError(
+                f"File size exceeds maximum limit: {self.config.max_chunk_size_mb}MB"
+            )
 
         try:
             # Read CSV file
-            with open(file_path, 'r', newline='', encoding='utf-8') as f:
+            with open(file_path, "r", newline="", encoding="utf-8") as f:
                 reader = csv.DictReader(f)
                 data = list(reader)
 
             # Validate based on file type
-            if file_type == 'sensors':
+            if file_type == "sensors":
                 return self.validate_sensors_data(data)
-            elif file_type == 'measurements':
+            elif file_type == "measurements":
                 return self.validate_measurements_data(data)
             else:
                 raise ValidationError(f"Unknown file type: {file_type}")
@@ -182,13 +189,15 @@ class DataUploader:
         self.auth_manager = auth_manager
         self.validator = DataValidator(auth_manager.config)
 
-    def upload_csv_data(self,
-                       campaign_id: str,
-                       station_id: str,
-                       sensors_file: Union[str, Path],
-                       measurements_file: Union[str, Path],
-                       validate_data: bool = True,
-                       **kwargs: Any) -> Dict[str, Any]:
+    def upload_csv_data(
+        self,
+        campaign_id: str,
+        station_id: str,
+        sensors_file: Union[str, Path],
+        measurements_file: Union[str, Path],
+        validate_data: bool = True,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Upload sensor and measurement data from CSV files using OpenAPI client.
 
@@ -212,17 +221,22 @@ class DataUploader:
 
         # Validate files exist
         if not sensors_file.exists():
-            raise ValidationError(f"Sensors file not found: {sensors_file}", field="sensors_file")
+            raise ValidationError(
+                f"Sensors file not found: {sensors_file}", field="sensors_file"
+            )
         if not measurements_file.exists():
-            raise ValidationError(f"Measurements file not found: {measurements_file}", field="measurements_file")
+            raise ValidationError(
+                f"Measurements file not found: {measurements_file}",
+                field="measurements_file",
+            )
 
         # Validate data format if requested
         if validate_data:
             logger.info("Validating sensor data format...")
-            self.validator.validate_csv_file(sensors_file, 'sensors')
+            self.validator.validate_csv_file(sensors_file, "sensors")
 
             logger.info("Validating measurement data format...")
-            self.validator.validate_csv_file(measurements_file, 'measurements')
+            self.validator.validate_csv_file(measurements_file, "measurements")
 
         # Upload files using OpenAPI client
         try:
@@ -230,7 +244,7 @@ class DataUploader:
             station_id_int = int(station_id)
 
             # Read files as bytes for upload
-            with open(sensors_file, 'rb') as sf, open(measurements_file, 'rb') as mf:
+            with open(sensors_file, "rb") as sf, open(measurements_file, "rb") as mf:
                 sensors_data = sf.read()
                 measurements_data = mf.read()
 
@@ -241,23 +255,27 @@ class DataUploader:
                     campaign_id=campaign_id_int,
                     station_id=station_id_int,
                     upload_file_sensors=sensors_data,
-                    upload_file_measurements=measurements_data
+                    upload_file_measurements=measurements_data,
                 )
 
-                logger.info(f"Successfully uploaded data for campaign {campaign_id}, station {station_id}")
+                logger.info(
+                    f"Successfully uploaded data for campaign {campaign_id}, station {station_id}"
+                )
 
                 return {
-                    'success': True,
-                    'campaign_id': campaign_id,
-                    'station_id': station_id,
-                    'sensors_file': str(sensors_file),
-                    'measurements_file': str(measurements_file),
-                    'response': response,
-                    'message': 'Data uploaded successfully'
+                    "success": True,
+                    "campaign_id": campaign_id,
+                    "station_id": station_id,
+                    "sensors_file": str(sensors_file),
+                    "measurements_file": str(measurements_file),
+                    "response": response,
+                    "message": "Data uploaded successfully",
                 }
 
         except ValueError:
-            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}")
+            raise ValidationError(
+                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}"
+            )
         except ApiException as e:
             if e.status == 422:
                 raise ValidationError(f"Data validation failed: {e}")
@@ -267,13 +285,15 @@ class DataUploader:
             logger.error(f"Data upload failed: {e}")
             raise UploadError(f"Failed to upload data: {e}")
 
-    def upload_chunked_csv_data(self,
-                               campaign_id: str,
-                               station_id: str,
-                               sensors_file: Union[str, Path],
-                               measurements_file: Union[str, Path],
-                               validate_data: bool = True,
-                               **kwargs: Any) -> Dict[str, Any]:
+    def upload_chunked_csv_data(
+        self,
+        campaign_id: str,
+        station_id: str,
+        sensors_file: Union[str, Path],
+        measurements_file: Union[str, Path],
+        validate_data: bool = True,
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """
         Upload large CSV files in chunks.
 
@@ -297,17 +317,33 @@ class DataUploader:
 
         # Validate files exist
         if not sensors_file.exists():
-            raise ValidationError(f"Sensors file not found: {sensors_file}", field="sensors_file")
+            raise ValidationError(
+                f"Sensors file not found: {sensors_file}", field="sensors_file"
+            )
         if not measurements_file.exists():
-            raise ValidationError(f"Measurements file not found: {measurements_file}", field="measurements_file")
+            raise ValidationError(
+                f"Measurements file not found: {measurements_file}",
+                field="measurements_file",
+            )
 
         # Check if files need chunking
-        sensors_needs_chunking = not validate_file_size(sensors_file, self.auth_manager.config.max_chunk_size_mb)
-        measurements_needs_chunking = not validate_file_size(measurements_file, self.auth_manager.config.max_chunk_size_mb)
+        sensors_needs_chunking = not validate_file_size(
+            sensors_file, self.auth_manager.config.max_chunk_size_mb
+        )
+        measurements_needs_chunking = not validate_file_size(
+            measurements_file, self.auth_manager.config.max_chunk_size_mb
+        )
 
         if not sensors_needs_chunking and not measurements_needs_chunking:
             # Files are small enough, use regular upload
-            return self.upload_csv_data(campaign_id, station_id, sensors_file, measurements_file, validate_data, **kwargs)
+            return self.upload_csv_data(
+                campaign_id,
+                station_id,
+                sensors_file,
+                measurements_file,
+                validate_data,
+                **kwargs,
+            )
 
         # Handle chunking for large files
         upload_results = []
@@ -319,18 +355,20 @@ class DataUploader:
                 sensors_chunks = chunk_file(
                     sensors_file,
                     chunk_size=self.auth_manager.config.chunk_size,
-                    max_chunk_size_mb=self.auth_manager.config.max_chunk_size_mb
+                    max_chunk_size_mb=self.auth_manager.config.max_chunk_size_mb,
                 )
             else:
                 sensors_chunks = [str(sensors_file)]
 
             # Chunk measurements file if needed
             if measurements_needs_chunking:
-                logger.info(f"Chunking large measurements file: {measurements_file.name}")
+                logger.info(
+                    f"Chunking large measurements file: {measurements_file.name}"
+                )
                 measurements_chunks = chunk_file(
                     measurements_file,
                     chunk_size=self.auth_manager.config.chunk_size,
-                    max_chunk_size_mb=self.auth_manager.config.max_chunk_size_mb
+                    max_chunk_size_mb=self.auth_manager.config.max_chunk_size_mb,
                 )
             else:
                 measurements_chunks = [str(measurements_file)]
@@ -344,8 +382,10 @@ class DataUploader:
                             station_id=station_id,
                             sensors_file=sensors_chunk,
                             measurements_file=measurements_chunk,
-                            validate_data=validate_data and i == 0 and j == 0,  # Only validate first chunk
-                            **kwargs
+                            validate_data=validate_data
+                            and i == 0
+                            and j == 0,  # Only validate first chunk
+                            **kwargs,
                         )
                         upload_results.append(result)
 
@@ -354,29 +394,37 @@ class DataUploader:
                         raise UploadError(f"Failed to upload chunk {i+1}/{j+1}: {e}")
 
             return {
-                'success': True,
-                'chunks_uploaded': len(upload_results),
-                'chunk_results': upload_results,
-                'message': f'Successfully uploaded {len(upload_results)} chunks'
+                "success": True,
+                "chunks_uploaded": len(upload_results),
+                "chunk_results": upload_results,
+                "message": f"Successfully uploaded {len(upload_results)} chunks",
             }
 
         finally:
             # Clean up temporary chunk files
             if sensors_needs_chunking:
                 for chunk_file_path in sensors_chunks:
-                    if chunk_file_path != str(sensors_file):  # Don't delete original file
+                    if chunk_file_path != str(
+                        sensors_file
+                    ):  # Don't delete original file
                         try:
                             Path(chunk_file_path).unlink()
                         except Exception as e:
-                            logger.warning(f"Failed to delete chunk file {chunk_file_path}: {e}")
+                            logger.warning(
+                                f"Failed to delete chunk file {chunk_file_path}: {e}"
+                            )
 
             if measurements_needs_chunking:
                 for chunk_file_path in measurements_chunks:
-                    if chunk_file_path != str(measurements_file):  # Don't delete original file
+                    if chunk_file_path != str(
+                        measurements_file
+                    ):  # Don't delete original file
                         try:
                             Path(chunk_file_path).unlink()
                         except Exception as e:
-                            logger.warning(f"Failed to delete chunk file {chunk_file_path}: {e}")
+                            logger.warning(
+                                f"Failed to delete chunk file {chunk_file_path}: {e}"
+                            )
 
     def prepare_files(
         self,
@@ -384,7 +432,7 @@ class DataUploader:
         station_id: int,
         sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
         measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
-        chunk_size: int = 1000
+        chunk_size: int = 1000,
     ) -> Tuple[Union[bytes, Tuple[str, bytes]], List[Tuple[str, bytes]]]:
         """
         Prepare files for upload with validation and chunking.
@@ -406,20 +454,22 @@ class DataUploader:
         if not sensors_file:
             raise ValidationError("Sensors file is required", field="sensors_file")
         if not measurements_file:
-            raise ValidationError("Measurements file is required", field="measurements_file")
+            raise ValidationError(
+                "Measurements file is required", field="measurements_file"
+            )
 
         # Prepare sensors file
         upload_file_sensors = self._prepare_file_input(sensors_file, "sensors")
 
         # Process measurements file in chunks
-        measurements_chunks = self._split_measurements_file(measurements_file, chunk_size)
+        measurements_chunks = self._split_measurements_file(
+            measurements_file, chunk_size
+        )
 
         return upload_file_sensors, measurements_chunks
 
     def _prepare_file_input(
-        self,
-        file_input: Union[str, Path, bytes, Tuple[str, bytes]],
-        file_type: str
+        self, file_input: Union[str, Path, bytes, Tuple[str, bytes]], file_type: str
     ) -> Union[bytes, Tuple[str, bytes]]:
         """
         Prepare file input for upload API.
@@ -439,9 +489,11 @@ class DataUploader:
                 # File path - read the file
                 file_path = Path(file_input)
                 if not file_path.exists():
-                    raise ValidationError(f"{file_type.capitalize()} file not found: {file_input}")
+                    raise ValidationError(
+                        f"{file_type.capitalize()} file not found: {file_input}"
+                    )
 
-                with open(file_path, 'rb') as f:
+                with open(file_path, "rb") as f:
                     content = f.read()
 
                 # Return as tuple (filename, bytes) for multipart upload
@@ -455,11 +507,15 @@ class DataUploader:
                 # Tuple (filename, bytes) - validate and return
                 filename, content = file_input
                 if not isinstance(filename, str) or not isinstance(content, bytes):
-                    raise ValidationError(f"Invalid {file_type} file tuple format: expected (str, bytes)")
+                    raise ValidationError(
+                        f"Invalid {file_type} file tuple format: expected (str, bytes)"
+                    )
                 return file_input
 
             else:
-                raise ValidationError(f"Invalid {file_type} file format: expected path, bytes, or (filename, bytes) tuple")
+                raise ValidationError(
+                    f"Invalid {file_type} file format: expected path, bytes, or (filename, bytes) tuple"
+                )
 
         except (OSError, IOError) as e:
             raise ValidationError(f"Failed to read {file_type} file: {e}") from e
@@ -467,7 +523,7 @@ class DataUploader:
     def _split_measurements_file(
         self,
         measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
-        chunk_size: int
+        chunk_size: int,
     ) -> List[Tuple[str, bytes]]:
         """
         Split measurements file into chunks for upload.
@@ -487,25 +543,31 @@ class DataUploader:
             if isinstance(measurements_file, (str, Path)):
                 file_path = Path(measurements_file)
                 if not file_path.exists():
-                    raise ValidationError(f"Measurements file not found: {measurements_file}")
+                    raise ValidationError(
+                        f"Measurements file not found: {measurements_file}"
+                    )
 
-                with open(file_path, 'r', encoding='utf-8') as f:
+                with open(file_path, "r", encoding="utf-8") as f:
                     lines = f.readlines()
                 original_filename = file_path.name
 
             elif isinstance(measurements_file, bytes):
-                lines = measurements_file.decode('utf-8').splitlines(keepends=True)
+                lines = measurements_file.decode("utf-8").splitlines(keepends=True)
                 original_filename = "measurements.csv"
 
             elif isinstance(measurements_file, tuple) and len(measurements_file) == 2:
                 filename, content = measurements_file
                 if not isinstance(filename, str) or not isinstance(content, bytes):
-                    raise ValidationError("Invalid measurements file tuple format: expected (str, bytes)")
-                lines = content.decode('utf-8').splitlines(keepends=True)
+                    raise ValidationError(
+                        "Invalid measurements file tuple format: expected (str, bytes)"
+                    )
+                lines = content.decode("utf-8").splitlines(keepends=True)
                 original_filename = filename
 
             else:
-                raise ValidationError("Invalid measurements file format: expected path, bytes, or (filename, bytes) tuple")
+                raise ValidationError(
+                    "Invalid measurements file format: expected path, bytes, or (filename, bytes) tuple"
+                )
 
             if not lines:
                 raise ValidationError("Measurements file is empty")
@@ -515,16 +577,16 @@ class DataUploader:
             data_lines = lines[1:]
 
             if not data_lines:
-                return [('', b'')]
+                return [("", b"")]
 
             # Split data lines into chunks
             chunks = []
             for i in range(0, len(data_lines), chunk_size):
-                chunk_data_lines = data_lines[i:i + chunk_size]
+                chunk_data_lines = data_lines[i : i + chunk_size]
 
                 # Create chunk content with header + data lines
-                chunk_content = header + ''.join(chunk_data_lines)
-                chunk_bytes = chunk_content.encode('utf-8')
+                chunk_content = header + "".join(chunk_data_lines)
+                chunk_bytes = chunk_content.encode("utf-8")
 
                 # Create filename for this chunk
                 base_name = Path(original_filename).stem
@@ -533,17 +595,21 @@ class DataUploader:
 
                 chunks.append((chunk_filename, chunk_bytes))
 
-            logger.info(f"Split measurements file into {len(chunks)} chunks of {chunk_size} lines each")
+            logger.info(
+                f"Split measurements file into {len(chunks)} chunks of {chunk_size} lines each"
+            )
             return chunks
 
         except (OSError, IOError) as e:
             raise ValidationError(f"Failed to read measurements file: {e}") from e
         except UnicodeDecodeError as e:
-            raise ValidationError(f"Failed to decode measurements file (must be UTF-8): {e}") from e
+            raise ValidationError(
+                f"Failed to decode measurements file (must be UTF-8): {e}"
+            ) from e
 
-    def validate_files(self,
-                      sensors_file: Union[str, Path],
-                      measurements_file: Union[str, Path]) -> Dict[str, Any]:
+    def validate_files(
+        self, sensors_file: Union[str, Path], measurements_file: Union[str, Path]
+    ) -> Dict[str, Any]:
         """
         Validate CSV files without uploading.
 
@@ -562,22 +628,29 @@ class DataUploader:
 
         # Validate files exist
         if not sensors_file.exists():
-            raise ValidationError(f"Sensors file not found: {sensors_file}", field="sensors_file")
+            raise ValidationError(
+                f"Sensors file not found: {sensors_file}", field="sensors_file"
+            )
         if not measurements_file.exists():
-            raise ValidationError(f"Measurements file not found: {measurements_file}", field="measurements_file")
+            raise ValidationError(
+                f"Measurements file not found: {measurements_file}",
+                field="measurements_file",
+            )
 
         # Validate data format
         logger.info("Validating sensor data format...")
-        sensors_result = self.validator.validate_csv_file(sensors_file, 'sensors')
+        sensors_result = self.validator.validate_csv_file(sensors_file, "sensors")
 
         logger.info("Validating measurement data format...")
-        measurements_result = self.validator.validate_csv_file(measurements_file, 'measurements')
+        measurements_result = self.validator.validate_csv_file(
+            measurements_file, "measurements"
+        )
 
         return {
-            'valid': True,
-            'sensors_validation': sensors_result,
-            'measurements_validation': measurements_result,
-            'message': 'All files validated successfully'
+            "valid": True,
+            "sensors_validation": sensors_result,
+            "measurements_validation": measurements_result,
+            "message": "All files validated successfully",
         }
 
     def get_file_info(self, file_path: Union[str, Path]) -> Dict[str, Any]:
@@ -603,7 +676,7 @@ class DataUploader:
 
         # Count rows
         try:
-            with open(file_path, 'r', newline='', encoding='utf-8') as f:
+            with open(file_path, "r", newline="", encoding="utf-8") as f:
                 reader = csv.reader(f)
                 row_count = sum(1 for _ in reader) - 1  # Subtract header row
         except Exception as e:
@@ -611,10 +684,10 @@ class DataUploader:
             row_count = None
 
         return {
-            'file_path': str(file_path),
-            'file_name': file_path.name,
-            'file_size_mb': round(file_size_mb, 2),
-            'row_count': row_count,
-            'needs_chunking': file_size_mb > self.auth_manager.config.max_chunk_size_mb,
-            'max_chunk_size_mb': self.auth_manager.config.max_chunk_size_mb
+            "file_path": str(file_path),
+            "file_name": file_path.name,
+            "file_size_mb": round(file_size_mb, 2),
+            "row_count": row_count,
+            "needs_chunking": file_size_mb > self.auth_manager.config.max_chunk_size_mb,
+            "max_chunk_size_mb": self.auth_manager.config.max_chunk_size_mb,
         }

@@ -34,9 +34,11 @@ def create_large_measurements_file(file_path: str, num_lines: int = 5000):
     """
     print(f"Creating large measurements file with {num_lines} lines...")
 
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         # Write header
-        f.write("collectiontime,Lat_deg,Lon_deg,temperature_sensor,humidity_sensor,pressure_sensor,wind_speed_sensor\n")
+        f.write(
+            "collectiontime,Lat_deg,Lon_deg,temperature_sensor,humidity_sensor,pressure_sensor,wind_speed_sensor\n"
+        )
 
         # Generate data lines
         base_time = datetime(2024, 1, 1, 0, 0, 0)
@@ -45,7 +47,9 @@ def create_large_measurements_file(file_path: str, num_lines: int = 5000):
 
         for i in range(num_lines):
             # Generate timestamp with slight variations
-            timestamp = base_time + timedelta(hours=i % 24, minutes=i % 60, seconds=i % 60)
+            timestamp = base_time + timedelta(
+                hours=i % 24, minutes=i % 60, seconds=i % 60
+            )
 
             # Generate coordinates with slight variations
             lat = base_lat + (i * 0.0001) % 0.01
@@ -53,11 +57,13 @@ def create_large_measurements_file(file_path: str, num_lines: int = 5000):
 
             # Generate sensor readings with realistic variations
             temperature = 20.0 + 10 * random.random()  # 20-30°C
-            humidity = 40.0 + 30 * random.random()     # 40-70%
-            pressure = 1013.0 + 20 * random.random()   # 1013-1033 hPa
-            wind_speed = 0.0 + 15 * random.random()    # 0-15 m/s
+            humidity = 40.0 + 30 * random.random()  # 40-70%
+            pressure = 1013.0 + 20 * random.random()  # 1013-1033 hPa
+            wind_speed = 0.0 + 15 * random.random()  # 0-15 m/s
 
-            f.write(f"{timestamp.isoformat()},{lat:.6f},{lon:.6f},{temperature:.2f},{humidity:.2f},{pressure:.2f},{wind_speed:.2f}\n")
+            f.write(
+                f"{timestamp.isoformat()},{lat:.6f},{lon:.6f},{temperature:.2f},{humidity:.2f},{pressure:.2f},{wind_speed:.2f}\n"
+            )
 
     print(f"Created measurements file: {file_path}")
 
@@ -71,11 +77,15 @@ def create_sensors_file(file_path: str):
     """
     print("Creating sensors file...")
 
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write("alias,variablename,units,postprocess,postprocessscript\n")
-        f.write("temperature_sensor,Air Temperature,°C,True,temperature_correction_script\n")
+        f.write(
+            "temperature_sensor,Air Temperature,°C,True,temperature_correction_script\n"
+        )
         f.write("humidity_sensor,Relative Humidity,%,False,\n")
-        f.write("pressure_sensor,Atmospheric Pressure,hPa,True,pressure_correction_script\n")
+        f.write(
+            "pressure_sensor,Atmospheric Pressure,hPa,True,pressure_correction_script\n"
+        )
         f.write("wind_speed_sensor,Wind Speed,m/s,True,wind_correction_script\n")
 
     print(f"Created sensors file: {file_path}")
@@ -97,7 +107,7 @@ def demonstrate_chunked_upload():
         campaign = client.campaigns.create(
             name="Large Dataset Campaign",
             description="Campaign for testing chunked upload functionality",
-            geometry="POINT(-97.7431 30.2672)"
+            geometry="POINT(-97.7431 30.2672)",
         )
         campaign_id = campaign.id
         print(f"   Created campaign: {campaign_id}")
@@ -108,21 +118,27 @@ def demonstrate_chunked_upload():
             campaign_id=campaign_id,
             name="Multi-Sensor Station",
             description="Station with multiple sensors for chunked upload testing",
-            geometry="POINT(-97.7431 30.2672)"
+            geometry="POINT(-97.7431 30.2672)",
         )
         station_id = station.id
         print(f"   Created station: {station_id}")
 
         # Create temporary files
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as sensors_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as sensors_file:
             sensors_path = sensors_file.name
 
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as measurements_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as measurements_file:
             measurements_path = measurements_file.name
 
         # Create the CSV files
         create_sensors_file(sensors_path)
-        create_large_measurements_file(measurements_path, num_lines=3500)  # Will create 4 chunks with default size
+        create_large_measurements_file(
+            measurements_path, num_lines=3500
+        )  # Will create 4 chunks with default size
 
         print(f"\n3. Uploading CSV files with chunked measurements...")
         print(f"   Sensors file: {sensors_path}")
@@ -136,7 +152,7 @@ def demonstrate_chunked_upload():
             campaign_id=campaign_id,
             station_id=station_id,
             sensors_file=sensors_path,
-            measurements_file=measurements_path
+            measurements_file=measurements_path,
         )
 
         upload_time = time.time() - start_time
@@ -156,9 +172,13 @@ def demonstrate_chunked_upload():
         print(f"   Creating smaller file for custom chunk size test...")
 
         # Create a smaller file for custom chunk size test
-        with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as small_measurements_file:
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False
+        ) as small_measurements_file:
             small_measurements_path = small_measurements_file.name
-            create_large_measurements_file(small_measurements_path, num_lines=800)  # Will create 2 chunks with size=500
+            create_large_measurements_file(
+                small_measurements_path, num_lines=800
+            )  # Will create 2 chunks with size=500
 
         print(f"   Uploading with custom chunk size (500 lines per chunk)...")
 
@@ -169,7 +189,7 @@ def demonstrate_chunked_upload():
             station_id=station_id,
             sensors_file=sensors_path,
             measurements_file=small_measurements_path,
-            chunk_size=500  # Custom chunk size
+            chunk_size=500,  # Custom chunk size
         )
 
         upload_time = time.time() - start_time
@@ -183,7 +203,7 @@ def demonstrate_chunked_upload():
         sensors_content = (
             "alias,variablename,units,postprocess,postprocessscript\n"
             "bytes_temp_sensor,Air Temperature,°C,True,temp_correction\n"
-        ).encode('utf-8')
+        ).encode("utf-8")
 
         # Create measurements content as bytes
         measurements_lines = ["collectiontime,Lat_deg,Lon_deg,bytes_temp_sensor\n"]
@@ -192,9 +212,11 @@ def demonstrate_chunked_upload():
             lat = 30.2672 + (i * 0.0001) % 0.01
             lon = -97.7431 + (i * 0.0001) % 0.01
             temp = 20.0 + 10 * random.random()
-            measurements_lines.append(f"{timestamp.isoformat()},{lat:.6f},{lon:.6f},{temp:.2f}\n")
+            measurements_lines.append(
+                f"{timestamp.isoformat()},{lat:.6f},{lon:.6f},{temp:.2f}\n"
+            )
 
-        measurements_content = ''.join(measurements_lines).encode('utf-8')
+        measurements_content = "".join(measurements_lines).encode("utf-8")
 
         print(f"   Uploading using bytes input with chunk size 500...")
 
@@ -205,7 +227,7 @@ def demonstrate_chunked_upload():
             station_id=station_id,
             sensors_file=sensors_content,
             measurements_file=measurements_content,
-            chunk_size=500
+            chunk_size=500,
         )
 
         upload_time = time.time() - start_time

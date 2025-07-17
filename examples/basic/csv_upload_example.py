@@ -20,7 +20,7 @@ from upstream import UpstreamClient
 
 def create_sample_sensors_csv(file_path: str) -> None:
     """Create a sample sensors CSV file with the correct format."""
-    with open(file_path, 'w', encoding='utf-8') as f:
+    with open(file_path, "w", encoding="utf-8") as f:
         f.write("alias,variablename,units,postprocess,postprocessscript\n")
         f.write("temp_sensor_01,Air Temperature,°C,,\n")
         f.write("humidity_01,Relative Humidity,%,,\n")
@@ -32,8 +32,10 @@ def create_sample_sensors_csv(file_path: str) -> None:
 
 def create_sample_measurements_csv(file_path: str) -> None:
     """Create a sample measurements CSV file with the correct format."""
-    with open(file_path, 'w', encoding='utf-8') as f:
-        f.write("collectiontime,Lat_deg,Lon_deg,temp_sensor_01,humidity_01,pressure_01,wind_speed_01,wind_direction_01,rainfall_01\n")
+    with open(file_path, "w", encoding="utf-8") as f:
+        f.write(
+            "collectiontime,Lat_deg,Lon_deg,temp_sensor_01,humidity_01,pressure_01,wind_speed_01,wind_direction_01,rainfall_01\n"
+        )
 
         # Generate sample data for the last 24 hours
         base_time = datetime.now() - timedelta(hours=24)
@@ -43,34 +45,38 @@ def create_sample_measurements_csv(file_path: str) -> None:
         for i in range(24):
             timestamp = base_time + timedelta(hours=i)
             lat = base_lat + (i * 0.0001)  # Slight variation
-            lon = base_lon + (i * 0.0001)   # Slight variation
+            lon = base_lon + (i * 0.0001)  # Slight variation
 
             # Generate realistic sensor values
             temp = 20 + (i % 12) * 0.5  # Temperature variation
-            humidity = 60 + (i % 8) * 2   # Humidity variation
+            humidity = 60 + (i % 8) * 2  # Humidity variation
             pressure = 1013.25 + (i % 6) * 0.1  # Pressure variation
-            wind_speed = 2 + (i % 4) * 0.5      # Wind speed variation
-            wind_direction = (i * 15) % 360      # Wind direction variation
+            wind_speed = 2 + (i % 4) * 0.5  # Wind speed variation
+            wind_direction = (i * 15) % 360  # Wind direction variation
             rainfall = 0 if i < 20 else (i - 19) * 0.1  # Some rain at the end
 
-            f.write(f"{timestamp.strftime('%Y-%m-%dT%H:%M:%S')},{lat:.4f},{lon:.4f},{temp:.1f},{humidity:.1f},{pressure:.2f},{wind_speed:.1f},{wind_direction:.0f},{rainfall:.1f}\n")
+            f.write(
+                f"{timestamp.strftime('%Y-%m-%dT%H:%M:%S')},{lat:.4f},{lon:.4f},{temp:.1f},{humidity:.1f},{pressure:.2f},{wind_speed:.1f},{wind_direction:.0f},{rainfall:.1f}\n"
+            )
 
 
 def main():
     """Main function demonstrating CSV upload functionality."""
 
     # Initialize client (you'll need to set these environment variables)
-    username = os.environ.get('UPSTREAM_USERNAME')
-    password = os.environ.get('UPSTREAM_PASSWORD')
+    username = os.environ.get("UPSTREAM_USERNAME")
+    password = os.environ.get("UPSTREAM_PASSWORD")
 
     if not username or not password:
-        print("❌ Please set UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables")
+        print(
+            "❌ Please set UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables"
+        )
         return
 
     client = UpstreamClient(
         username=username,
         password=password,
-        base_url="https://upstream-dev.tacc.utexas.edu"
+        base_url="https://upstream-dev.tacc.utexas.edu",
     )
 
     # Authenticate
@@ -91,7 +97,7 @@ def main():
         contact_email="example@tacc.utexas.edu",
         allocation="TACC",
         start_date=datetime.now(),
-        end_date=datetime.now() + timedelta(days=30)
+        end_date=datetime.now() + timedelta(days=30),
     )
 
     try:
@@ -108,7 +114,7 @@ def main():
             contact_name="Example User",
             contact_email="example@tacc.utexas.edu",
             start_date=datetime.now(),
-            active=True
+            active=True,
         )
 
         station = client.create_station(campaign_id, station_data)
@@ -117,11 +123,15 @@ def main():
 
         try:
             # Create temporary CSV files
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as sensors_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as sensors_file:
                 create_sample_sensors_csv(sensors_file.name)
                 sensors_path = sensors_file.name
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as measurements_file:
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as measurements_file:
                 create_sample_measurements_csv(measurements_file.name)
                 measurements_path = measurements_file.name
 
@@ -133,7 +143,7 @@ def main():
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=sensors_path,
-                    measurements_file=measurements_path
+                    measurements_file=measurements_path,
                 )
 
                 print("✅ Upload successful!")
@@ -143,16 +153,16 @@ def main():
                 print("\n🔄 Testing different upload methods...")
 
                 # Method 1: Using bytes
-                with open(sensors_path, 'rb') as f:
+                with open(sensors_path, "rb") as f:
                     sensors_bytes = f.read()
-                with open(measurements_path, 'rb') as f:
+                with open(measurements_path, "rb") as f:
                     measurements_bytes = f.read()
 
                 result_bytes = client.upload_sensor_measurement_files(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=sensors_bytes,
-                    measurements_file=measurements_bytes
+                    measurements_file=measurements_bytes,
                 )
                 print("✅ Bytes upload successful")
 
@@ -161,7 +171,7 @@ def main():
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=("sensors.csv", sensors_bytes),
-                    measurements_file=("measurements.csv", measurements_bytes)
+                    measurements_file=("measurements.csv", measurements_bytes),
                 )
                 print("✅ Tuple upload successful")
 

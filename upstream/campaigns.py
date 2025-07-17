@@ -8,13 +8,15 @@ monitoring campaigns using the generated OpenAPI client.
 from typing import Optional
 
 from upstream_api_client.models.get_campaign_response import GetCampaignResponse
-from upstream_api_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
+from upstream_api_client.models.list_campaigns_response_pagination import (
+    ListCampaignsResponsePagination,
+)
 
 from upstream_api_client.api import CampaignsApi
 from upstream_api_client.models import (
     CampaignsIn,
     CampaignCreateResponse,
-    CampaignUpdate
+    CampaignUpdate,
 )
 from upstream_api_client.rest import ApiException
 
@@ -25,11 +27,11 @@ from .utils import get_logger
 logger = get_logger(__name__)
 
 
-
 class CampaignManager:
     """Manages campaign operations using the OpenAPI client."""
 
     auth_manager: AuthManager
+
     def __init__(self, auth_manager: AuthManager) -> None:
         """Initialize campaign manager.
 
@@ -53,13 +55,17 @@ class CampaignManager:
             APIError: If API request fails
         """
         if not isinstance(campaign_in, CampaignsIn):
-            raise ValidationError("campaign_in must be a CampaignsIn instance", field="campaign_in")
+            raise ValidationError(
+                "campaign_in must be a CampaignsIn instance", field="campaign_in"
+            )
 
         try:
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
-                response: CampaignCreateResponse = campaigns_api.create_campaign_api_v1_campaigns_post(
-                    campaigns_in=campaign_in
+                response: CampaignCreateResponse = (
+                    campaigns_api.create_campaign_api_v1_campaigns_post(
+                        campaigns_in=campaign_in
+                    )
                 )
                 return response
         except ApiException as e:
@@ -88,8 +94,10 @@ class CampaignManager:
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
 
-                response : GetCampaignResponse = campaigns_api.get_campaign_api_v1_campaigns_campaign_id_get(
-                    campaign_id=campaign_id_int
+                response: GetCampaignResponse = (
+                    campaigns_api.get_campaign_api_v1_campaigns_campaign_id_get(
+                        campaign_id=campaign_id_int
+                    )
                 )
                 return response
 
@@ -103,8 +111,9 @@ class CampaignManager:
         except Exception as e:
             raise APIError(f"Failed to get campaign: {e}")
 
-    def list(self, limit: int = 50, page: int = 1,
-             search: Optional[str] = None) -> ListCampaignsResponsePagination:
+    def list(
+        self, limit: int = 50, page: int = 1, search: Optional[str] = None
+    ) -> ListCampaignsResponsePagination:
         """List campaigns with optional filtering.
 
         Args:
@@ -121,9 +130,11 @@ class CampaignManager:
         try:
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
-                response : ListCampaignsResponsePagination = campaigns_api.list_campaigns_api_v1_campaigns_get(
-                    limit=limit,
-                    page=page,
+                response: ListCampaignsResponsePagination = (
+                    campaigns_api.list_campaigns_api_v1_campaigns_get(
+                        limit=limit,
+                        page=page,
+                    )
                 )
                 logger.info(f"Retrieved {response.total} campaigns")
                 return response
@@ -133,7 +144,9 @@ class CampaignManager:
         except Exception as e:
             raise APIError(f"Failed to list campaigns: {e}")
 
-    def update(self, campaign_id: str, campaign_update: CampaignUpdate) -> CampaignCreateResponse:
+    def update(
+        self, campaign_id: str, campaign_update: CampaignUpdate
+    ) -> CampaignCreateResponse:
         """
         Update an existing campaign.
 
@@ -149,14 +162,18 @@ class CampaignManager:
             APIError: If API request fails
         """
         if not isinstance(campaign_update, CampaignUpdate):
-            raise ValidationError("campaign_update must be a CampaignUpdate instance", field="campaign_update")
+            raise ValidationError(
+                "campaign_update must be a CampaignUpdate instance",
+                field="campaign_update",
+            )
         try:
             campaign_id_int = int(campaign_id)
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
-                response: CampaignCreateResponse = campaigns_api.partial_update_campaign_api_v1_campaigns_campaign_id_patch(
-                    campaign_id=campaign_id_int,
-                    campaign_update=campaign_update
+                response: CampaignCreateResponse = (
+                    campaigns_api.partial_update_campaign_api_v1_campaigns_campaign_id_patch(
+                        campaign_id=campaign_id_int, campaign_update=campaign_update
+                    )
                 )
                 return response
         except ValueError:

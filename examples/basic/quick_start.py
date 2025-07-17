@@ -21,8 +21,10 @@ def main() -> None:
     client = UpstreamClient(
         username=os.getenv("UPSTREAM_USERNAME", "your_username"),
         password=os.getenv("UPSTREAM_PASSWORD", "your_password"),
-        base_url=os.getenv("UPSTREAM_BASE_URL", "https://upstream-dso.tacc.utexas.edu/dev"),
-        ckan_url=os.getenv("CKAN_URL", "https://ckan.tacc.utexas.edu")
+        base_url=os.getenv(
+            "UPSTREAM_BASE_URL", "https://upstream-dso.tacc.utexas.edu/dev"
+        ),
+        ckan_url=os.getenv("CKAN_URL", "https://ckan.tacc.utexas.edu"),
     )
 
     try:
@@ -37,7 +39,7 @@ def main() -> None:
         print("\n📊 Creating campaign...")
         campaign = client.create_campaign(
             name="Example Air Quality Campaign",
-            description="Demonstration campaign for SDK usage"
+            description="Demonstration campaign for SDK usage",
         )
         print(f"Created campaign: (ID: {campaign.id})")
 
@@ -50,7 +52,7 @@ def main() -> None:
             longitude=-97.7431,
             description="City center air quality monitoring station",
             contact_name="Dr. Jane Smith",
-            contact_email="jane.smith@example.edu"
+            contact_email="jane.smith@example.edu",
         )
         print(f"Created station: (ID: {station.id})")
 
@@ -64,7 +66,7 @@ def main() -> None:
                 campaign_id=campaign.id,
                 station_id=station.id,
                 sensors_file=sensors_file,
-                measurements_file=measurements_file
+                measurements_file=measurements_file,
             )
             print(f"Upload successful! Upload ID: {result.get('upload_id')}")
 
@@ -74,7 +76,7 @@ def main() -> None:
                 ckan_result = client.publish_to_ckan(
                     campaign_id=campaign.id,
                     sensors_url=f"https://example.com/data/sensors.csv",
-                    measurements_url=f"https://example.com/data/measurements.csv"
+                    measurements_url=f"https://example.com/data/measurements.csv",
                 )
                 print(f"Published to CKAN: {ckan_result.get('ckan_url')}")
         else:
@@ -98,7 +100,7 @@ def main() -> None:
 
     except UpstreamError as e:
         print(f"❌ Upstream SDK Error: {e}")
-        if hasattr(e, 'details') and e.details:
+        if hasattr(e, "details") and e.details:
             print(f"   Details: {e.details}")
     except Exception as e:
         print(f"❌ Unexpected error: {e}")

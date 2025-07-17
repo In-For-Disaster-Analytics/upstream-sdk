@@ -5,25 +5,28 @@ from upstream_api_client.models import CampaignsIn, CampaignUpdate
 from upstream.client import UpstreamClient
 from upstream.exceptions import APIError
 
-BASE_URL = 'http://localhost:8000'
-CKAN_URL = 'http://ckan.tacc.cloud:5000'
+BASE_URL = "http://localhost:8000"
+CKAN_URL = "http://ckan.tacc.cloud:5000"
 
-USERNAME = os.environ.get('UPSTREAM_USERNAME')
-PASSWORD = os.environ.get('UPSTREAM_PASSWORD')
+USERNAME = os.environ.get("UPSTREAM_USERNAME")
+PASSWORD = os.environ.get("UPSTREAM_PASSWORD")
 
 pytestmark = pytest.mark.integration
 
-@pytest.mark.skipif(not USERNAME or not PASSWORD, reason="UPSTREAM_USERNAME and UPSTREAM_PASSWORD must be set in env")
+
+@pytest.mark.skipif(
+    not USERNAME or not PASSWORD,
+    reason="UPSTREAM_USERNAME and UPSTREAM_PASSWORD must be set in env",
+)
 def test_campaign_lifecycle():
     client = UpstreamClient(
-        username=USERNAME,
-        password=PASSWORD,
-        base_url=BASE_URL,
-        ckan_url=CKAN_URL
+        username=USERNAME, password=PASSWORD, base_url=BASE_URL, ckan_url=CKAN_URL
     )
 
     # Unique campaign name
-    campaign_name = f"integration-test-campaign-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    campaign_name = (
+        f"integration-test-campaign-{datetime.now().strftime('%Y%m%d%H%M%S')}"
+    )
     description = "Integration test campaign"
     contact_name = "Integration Tester"
     contact_email = "integration@example.com"
@@ -38,7 +41,7 @@ def test_campaign_lifecycle():
         contact_email=contact_email,
         allocation=allocation,
         start_date=start_date,
-        end_date=end_date
+        end_date=end_date,
     )
 
     # Create

@@ -13,7 +13,7 @@ from upstream_api_client.models import (
     SensorUpdate,
     GetSensorResponse,
     SensorCreateResponse,
-    ListSensorsResponsePagination
+    ListSensorsResponsePagination,
 )
 from upstream_api_client.rest import ApiException
 
@@ -40,7 +40,9 @@ class SensorManager:
         self.auth_manager = auth_manager
         self.data_uploader = DataUploader(auth_manager)
 
-    def get(self, sensor_id: str, station_id: str, campaign_id: str) -> GetSensorResponse:
+    def get(
+        self, sensor_id: str, station_id: str, campaign_id: str
+    ) -> GetSensorResponse:
         """
         Get sensor by ID.
 
@@ -74,13 +76,15 @@ class SensorManager:
                 response = sensors_api.get_sensor_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_get(
                     sensor_id=sensor_id_int,
                     station_id=station_id_int,
-                    campaign_id=campaign_id_int
+                    campaign_id=campaign_id_int,
                 )
 
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Sensor not found: {sensor_id}", status_code=404)
@@ -131,19 +135,27 @@ class SensorManager:
                     station_id=station_id_int,
                     limit=limit,
                     page=page,
-                    **kwargs
+                    **kwargs,
                 )
 
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}"
+            ) from exc
         except ApiException as e:
             raise APIError(f"Failed to list sensors: {e}", status_code=e.status)
         except Exception as e:
             raise APIError(f"Failed to list sensors: {e}")
 
-    def update(self, sensor_id: str, station_id: str, campaign_id: str, sensor_update: SensorUpdate) -> SensorCreateResponse:
+    def update(
+        self,
+        sensor_id: str,
+        station_id: str,
+        campaign_id: str,
+        sensor_update: SensorUpdate,
+    ) -> SensorCreateResponse:
         """
         Update sensor.
 
@@ -167,7 +179,9 @@ class SensorManager:
         if not campaign_id:
             raise ValidationError("Campaign ID is required", field="campaign_id")
         if not isinstance(sensor_update, SensorUpdate):
-            raise ValidationError("sensor_update must be a SensorUpdate instance", field="sensor_update")
+            raise ValidationError(
+                "sensor_update must be a SensorUpdate instance", field="sensor_update"
+            )
 
         try:
             sensor_id_int = int(sensor_id)
@@ -181,20 +195,24 @@ class SensorManager:
                     campaign_id=campaign_id_int,
                     station_id=station_id_int,
                     sensor_id=sensor_id_int,
-                    sensor_update=sensor_update
+                    sensor_update=sensor_update,
                 )
 
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Sensor not found: {sensor_id}", status_code=404) from e
             elif e.status == 422:
                 raise ValidationError(f"Sensor validation failed: {e}") from e
             else:
-                raise APIError(f"Failed to update sensor: {e}", status_code=e.status) from e
+                raise APIError(
+                    f"Failed to update sensor: {e}", status_code=e.status
+                ) from e
         except Exception as e:
             raise APIError(f"Failed to update sensor: {e}") from e
 
@@ -230,15 +248,16 @@ class SensorManager:
                 sensors_api = SensorsApi(api_client)
 
                 sensors_api.delete_sensor_api_v1_campaigns_campaign_id_stations_station_id_sensors_delete(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int
+                    campaign_id=campaign_id_int, station_id=station_id_int
                 )
 
                 logger.info(f"Deleted sensor: {sensor_id}")
                 return True
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Sensor not found: {sensor_id}", status_code=404)
@@ -253,7 +272,7 @@ class SensorManager:
         station_id: str,
         sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
         measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
-        chunk_size: int = 1000
+        chunk_size: int = 1000,
     ) -> Dict[str, object]:
         """
         Upload sensor and measurement CSV files to process and store data in the database.
@@ -304,7 +323,9 @@ class SensorManager:
         if not sensors_file:
             raise ValidationError("Sensors file is required", field="sensors_file")
         if not measurements_file:
-            raise ValidationError("Measurements file is required", field="measurements_file")
+            raise ValidationError(
+                "Measurements file is required", field="measurements_file"
+            )
 
         try:
             campaign_id_int = int(campaign_id)
@@ -316,7 +337,7 @@ class SensorManager:
                 station_id=station_id_int,
                 sensors_file=sensors_file,
                 measurements_file=measurements_file,
-                chunk_size=chunk_size
+                chunk_size=chunk_size,
             )
 
             all_responses = []
@@ -325,26 +346,34 @@ class SensorManager:
                 upload_api = UploadfileCsvApi(api_client)
 
                 for i, chunk in enumerate(measurements_chunks):
-                    logger.info(f"Uploading measurements chunk {i + 1}/{len(measurements_chunks)} ({len(chunk)} lines)")
+                    logger.info(
+                        f"Uploading measurements chunk {i + 1}/{len(measurements_chunks)} ({len(chunk)} lines)"
+                    )
 
                     response = upload_api.post_sensor_and_measurement_api_v1_uploadfile_csv_campaign_campaign_id_station_station_id_sensor_post(
                         campaign_id=campaign_id_int,
                         station_id=station_id_int,
                         upload_file_sensors=upload_file_sensors,  # Always upload sensors file
-                        upload_file_measurements=chunk
+                        upload_file_measurements=chunk,
                     )
 
                     all_responses.append(response)
 
-                logger.info(f"Successfully uploaded {len(measurements_chunks)} measurement chunks for campaign {campaign_id}, station {station_id}")
+                logger.info(
+                    f"Successfully uploaded {len(measurements_chunks)} measurement chunks for campaign {campaign_id}, station {station_id}"
+                )
                 return all_responses[-1] if all_responses else {}
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 422:
                 raise ValidationError(f"File validation failed: {e}") from e
             else:
-                raise APIError(f"Failed to upload CSV files: {e}", status_code=e.status) from e
+                raise APIError(
+                    f"Failed to upload CSV files: {e}", status_code=e.status
+                ) from e
         except Exception as e:
             raise APIError(f"Failed to upload CSV files: {e}") from e

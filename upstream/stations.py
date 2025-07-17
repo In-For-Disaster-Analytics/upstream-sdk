@@ -5,14 +5,13 @@ This module handles creation, retrieval, and management of monitoring stations
 using the generated OpenAPI client.
 """
 
-
 from upstream_api_client.api import StationsApi
 from upstream_api_client.models import (
     StationCreate,
     StationUpdate,
     GetStationResponse,
     StationCreateResponse,
-    ListStationsResponsePagination
+    ListStationsResponsePagination,
 )
 from upstream_api_client.rest import ApiException
 
@@ -59,15 +58,17 @@ class StationManager:
         if not campaign_id:
             raise ValidationError("Campaign ID is required", field="campaign_id")
         if not isinstance(station_create, StationCreate):
-            raise ValidationError("station_create must be a StationCreate instance", field="station_create")
+            raise ValidationError(
+                "station_create must be a StationCreate instance",
+                field="station_create",
+            )
 
         try:
             campaign_id_int = int(campaign_id)
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
                 response = stations_api.create_station_api_v1_campaigns_campaign_id_stations_post(
-                    campaign_id=campaign_id_int,
-                    station_create=station_create
+                    campaign_id=campaign_id_int, station_create=station_create
                 )
                 return response
 
@@ -77,7 +78,9 @@ class StationManager:
             if e.status == 422:
                 raise ValidationError(f"Station validation failed: {e}") from e
             else:
-                raise APIError(f"Failed to create station: {e}", status_code=e.status) from e
+                raise APIError(
+                    f"Failed to create station: {e}", status_code=e.status
+                ) from e
         except Exception as e:
             raise APIError(f"Failed to create station: {e}") from e
 
@@ -109,14 +112,15 @@ class StationManager:
                 stations_api = StationsApi(api_client)
 
                 response = stations_api.get_station_api_v1_campaigns_campaign_id_stations_station_id_get(
-                    station_id=station_id_int,
-                    campaign_id=campaign_id_int
+                    station_id=station_id_int, campaign_id=campaign_id_int
                 )
 
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Station not found: {station_id}", status_code=404)
@@ -156,9 +160,7 @@ class StationManager:
                 stations_api = StationsApi(api_client)
 
                 response = stations_api.list_stations_api_v1_campaigns_campaign_id_stations_get(
-                    campaign_id=campaign_id_int,
-                    limit=limit,
-                    page=page
+                    campaign_id=campaign_id_int, limit=limit, page=page
                 )
 
                 return response
@@ -170,7 +172,9 @@ class StationManager:
         except Exception as e:
             raise APIError(f"Failed to list stations: {e}")
 
-    def update(self, station_id: str, campaign_id: str, station_update: StationUpdate) -> StationCreateResponse:
+    def update(
+        self, station_id: str, campaign_id: str, station_update: StationUpdate
+    ) -> StationCreateResponse:
         """
         Update station.
 
@@ -191,7 +195,10 @@ class StationManager:
         if not campaign_id:
             raise ValidationError("Campaign ID is required", field="campaign_id")
         if not isinstance(station_update, StationUpdate):
-            raise ValidationError("station_update must be a StationUpdate instance", field="station_update")
+            raise ValidationError(
+                "station_update must be a StationUpdate instance",
+                field="station_update",
+            )
 
         try:
             station_id_int = int(station_id)
@@ -203,20 +210,26 @@ class StationManager:
                 response = stations_api.partial_update_station_api_v1_campaigns_campaign_id_stations_station_id_patch(
                     campaign_id=campaign_id_int,
                     station_id=station_id_int,
-                    station_update=station_update
+                    station_update=station_update,
                 )
 
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 404:
-                raise APIError(f"Station not found: {station_id}", status_code=404) from e
+                raise APIError(
+                    f"Station not found: {station_id}", status_code=404
+                ) from e
             elif e.status == 422:
                 raise ValidationError(f"Station validation failed: {e}") from e
             else:
-                raise APIError(f"Failed to update station: {e}", status_code=e.status) from e
+                raise APIError(
+                    f"Failed to update station: {e}", status_code=e.status
+                ) from e
         except Exception as e:
             raise APIError(f"Failed to update station: {e}") from e
 
@@ -257,7 +270,9 @@ class StationManager:
                 return True
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Station not found: {station_id}", status_code=404)

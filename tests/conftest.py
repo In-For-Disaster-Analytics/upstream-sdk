@@ -12,7 +12,14 @@ import csv
 from upstream.client import UpstreamClient
 from upstream.auth import AuthManager
 from upstream.utils import ConfigManager
-from upstream_api_client.models import CampaignsIn, StationCreate, GetCampaignResponse, GetStationResponse, StationCreateResponse, ListStationsResponsePagination
+from upstream_api_client.models import (
+    CampaignsIn,
+    StationCreate,
+    GetCampaignResponse,
+    GetStationResponse,
+    StationCreateResponse,
+    ListStationsResponsePagination,
+)
 
 
 @pytest.fixture
@@ -26,7 +33,7 @@ def mock_config():
         timeout=30,
         max_retries=3,
         chunk_size=1000,
-        max_chunk_size_mb=10
+        max_chunk_size_mb=10,
     )
 
 
@@ -37,7 +44,7 @@ def mock_auth_manager(mock_config):
     auth_manager.config = mock_config
     auth_manager.get_headers.return_value = {
         "Authorization": "Bearer test-token",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
     }
     auth_manager.authenticate.return_value = True
     return auth_manager
@@ -46,11 +53,11 @@ def mock_auth_manager(mock_config):
 @pytest.fixture
 def mock_client(mock_config, mock_auth_manager):
     """Mock Upstream client."""
-    with patch('upstream.client.AuthManager', return_value=mock_auth_manager):
+    with patch("upstream.client.AuthManager", return_value=mock_auth_manager):
         client = UpstreamClient(
             username="test_user",
             password="test_pass",
-            base_url="https://test.example.com"
+            base_url="https://test.example.com",
         )
         return client
 
@@ -64,7 +71,7 @@ def sample_campaign_data():
         "description": "A test campaign for unit testing",
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z",
-        "metadata": {"test": "data"}
+        "metadata": {"test": "data"},
     }
 
 
@@ -84,7 +91,7 @@ def sample_station_data():
         "created_at": "2024-01-01T00:00:00Z",
         "updated_at": "2024-01-01T00:00:00Z",
         "status": "active",
-        "metadata": {"test": "data"}
+        "metadata": {"test": "data"},
     }
 
 
@@ -97,15 +104,15 @@ def sample_sensors_data():
             "variablename": "Air Temperature",
             "units": "°C",
             "postprocess": "",
-            "postprocessscript": ""
+            "postprocessscript": "",
         },
         {
             "alias": "humidity_01",
             "variablename": "Relative Humidity",
             "units": "%",
             "postprocess": "",
-            "postprocessscript": ""
-        }
+            "postprocessscript": "",
+        },
     ]
 
 
@@ -118,26 +125,26 @@ def sample_measurements_data():
             "Lat_deg": 30.2672,
             "Lon_deg": -97.7431,
             "temp_01": 25.5,
-            "humidity_01": 65.2
+            "humidity_01": 65.2,
         },
         {
             "collectiontime": "2024-01-01T10:01:00Z",
             "Lat_deg": 30.2672,
             "Lon_deg": -97.7431,
             "temp_01": 25.7,
-            "humidity_01": 64.8
-        }
+            "humidity_01": 64.8,
+        },
     ]
 
 
 @pytest.fixture
 def temp_csv_file():
     """Create a temporary CSV file for testing."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         writer = csv.writer(f)
-        writer.writerow(['alias', 'variablename', 'units'])
-        writer.writerow(['temp_01', 'Air Temperature', '°C'])
-        writer.writerow(['humidity_01', 'Relative Humidity', '%'])
+        writer.writerow(["alias", "variablename", "units"])
+        writer.writerow(["temp_01", "Air Temperature", "°C"])
+        writer.writerow(["humidity_01", "Relative Humidity", "%"])
         temp_path = f.name
 
     yield Path(temp_path)
@@ -149,11 +156,13 @@ def temp_csv_file():
 @pytest.fixture
 def temp_measurements_csv():
     """Create a temporary measurements CSV file for testing."""
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as f:
         writer = csv.writer(f)
-        writer.writerow(['collectiontime', 'Lat_deg', 'Lon_deg', 'temp_01', 'humidity_01'])
-        writer.writerow(['2024-01-01T10:00:00Z', '30.2672', '-97.7431', '25.5', '65.2'])
-        writer.writerow(['2024-01-01T10:01:00Z', '30.2672', '-97.7431', '25.7', '64.8'])
+        writer.writerow(
+            ["collectiontime", "Lat_deg", "Lon_deg", "temp_01", "humidity_01"]
+        )
+        writer.writerow(["2024-01-01T10:00:00Z", "30.2672", "-97.7431", "25.5", "65.2"])
+        writer.writerow(["2024-01-01T10:01:00Z", "30.2672", "-97.7431", "25.7", "64.8"])
         temp_path = f.name
 
     yield Path(temp_path)
@@ -169,21 +178,18 @@ def temp_config_file():
         "upstream": {
             "username": "test_user",
             "password": "test_pass",
-            "base_url": "https://test.example.com"
+            "base_url": "https://test.example.com",
         },
-        "ckan": {
-            "url": "https://test-ckan.example.com",
-            "auto_publish": True
-        },
+        "ckan": {"url": "https://test-ckan.example.com", "auto_publish": True},
         "upload": {
             "chunk_size": 1000,
             "max_file_size_mb": 10,
             "timeout_seconds": 30,
-            "retry_attempts": 3
-        }
+            "retry_attempts": 3,
+        },
     }
 
-    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
         json.dump(config_data, f)
         temp_path = f.name
 
@@ -225,18 +231,10 @@ def reset_mocks():
 # Test markers
 def pytest_configure(config):
     """Configure pytest markers."""
-    config.addinivalue_line(
-        "markers", "unit: mark test as a unit test"
-    )
-    config.addinivalue_line(
-        "markers", "integration: mark test as an integration test"
-    )
-    config.addinivalue_line(
-        "markers", "slow: mark test as slow running"
-    )
-    config.addinivalue_line(
-        "markers", "network: mark test as requiring network access"
-    )
+    config.addinivalue_line("markers", "unit: mark test as a unit test")
+    config.addinivalue_line("markers", "integration: mark test as an integration test")
+    config.addinivalue_line("markers", "slow: mark test as slow running")
+    config.addinivalue_line("markers", "network: mark test as requiring network access")
 
 
 # Skip network tests by default
@@ -254,14 +252,11 @@ def pytest_collection_modifyitems(config, items):
 def pytest_addoption(parser):
     """Add command line options."""
     parser.addoption(
-        "--run-network",
-        action="store_true",
-        default=False,
-        help="run network tests"
+        "--run-network", action="store_true", default=False, help="run network tests"
     )
     parser.addoption(
         "--run-integration",
         action="store_true",
         default=False,
-        help="run integration tests"
+        help="run integration tests",
     )

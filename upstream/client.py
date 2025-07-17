@@ -11,15 +11,21 @@ from pathlib import Path
 from datetime import datetime
 
 from upstream_api_client import MeasurementIn, MeasurementCreateResponse
-from upstream_api_client.models.list_measurements_response_pagination import ListMeasurementsResponsePagination
+from upstream_api_client.models.list_measurements_response_pagination import (
+    ListMeasurementsResponsePagination,
+)
 from upstream_api_client.models.aggregated_measurement import AggregatedMeasurement
 from upstream_api_client.models.measurement_update import MeasurementUpdate
 from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
 from upstream_api_client.models.get_campaign_response import GetCampaignResponse
-from upstream_api_client.models.list_campaigns_response_pagination import ListCampaignsResponsePagination
+from upstream_api_client.models.list_campaigns_response_pagination import (
+    ListCampaignsResponsePagination,
+)
 from upstream_api_client.models.station_create_response import StationCreateResponse
 from upstream_api_client.models.get_station_response import GetStationResponse
-from upstream_api_client.models.list_stations_response_pagination import ListStationsResponsePagination
+from upstream_api_client.models.list_stations_response_pagination import (
+    ListStationsResponsePagination,
+)
 from .auth import AuthManager
 from .campaigns import CampaignManager
 from .stations import StationManager
@@ -39,13 +45,15 @@ class UpstreamClient:
 
     ckan: Optional[CKANIntegration]
 
-    def __init__(self,
-                 username: Optional[str] = None,
-                 password: Optional[str] = None,
-                 base_url: Optional[str] = None,
-                 ckan_url: Optional[str] = None,
-                 config_file: Optional[Union[str, Path]] = None,
-                 **kwargs: Any) -> None:
+    def __init__(
+        self,
+        username: Optional[str] = None,
+        password: Optional[str] = None,
+        base_url: Optional[str] = None,
+        ckan_url: Optional[str] = None,
+        config_file: Optional[Union[str, Path]] = None,
+        **kwargs: Any,
+    ) -> None:
         """Initialize the Upstream client.
 
         Args:
@@ -68,7 +76,7 @@ class UpstreamClient:
                 password=password,
                 base_url=base_url,
                 ckan_url=ckan_url,
-                **kwargs
+                **kwargs,
             )
 
         # Initialize authentication manager
@@ -84,8 +92,7 @@ class UpstreamClient:
         # Initialize CKAN integration if URL provided
         if config.ckan_url:
             self.ckan = CKANIntegration(
-                ckan_url=config.ckan_url,
-                config=config.to_dict()
+                ckan_url=config.ckan_url, config=config.to_dict()
             )
         else:
             self.ckan = None
@@ -93,7 +100,7 @@ class UpstreamClient:
         logger.info("Upstream client initialized successfully")
 
     @classmethod
-    def from_config(cls, config_file: Union[str, Path]) -> 'UpstreamClient':
+    def from_config(cls, config_file: Union[str, Path]) -> "UpstreamClient":
         """Create client from configuration file.
 
         Args:
@@ -105,7 +112,7 @@ class UpstreamClient:
         return cls(config_file=config_file)
 
     @classmethod
-    def from_environment(cls) -> 'UpstreamClient':
+    def from_environment(cls) -> "UpstreamClient":
         """Create client from environment variables.
 
         Environment variables:
@@ -118,10 +125,10 @@ class UpstreamClient:
             Configured UpstreamClient instance
         """
         return cls(
-            username=os.environ.get('UPSTREAM_USERNAME'),
-            password=os.environ.get('UPSTREAM_PASSWORD'),
-            base_url=os.environ.get('UPSTREAM_BASE_URL'),
-            ckan_url=os.environ.get('CKAN_URL')
+            username=os.environ.get("UPSTREAM_USERNAME"),
+            password=os.environ.get("UPSTREAM_PASSWORD"),
+            base_url=os.environ.get("UPSTREAM_BASE_URL"),
+            ckan_url=os.environ.get("CKAN_URL"),
         )
 
     def authenticate(self) -> bool:
@@ -165,7 +172,9 @@ class UpstreamClient:
         """
         return self.campaigns.list(**kwargs)
 
-    def create_station(self, campaign_id: str, station_create: StationCreate) -> StationCreateResponse:
+    def create_station(
+        self, campaign_id: str, station_create: StationCreate
+    ) -> StationCreateResponse:
         """Create a new monitoring station.
 
         Args:
@@ -189,7 +198,9 @@ class UpstreamClient:
         """
         return self.stations.get(station_id, campaign_id)
 
-    def list_stations(self, campaign_id: str, **kwargs: Any) -> ListStationsResponsePagination:
+    def list_stations(
+        self, campaign_id: str, **kwargs: Any
+    ) -> ListStationsResponsePagination:
         """List stations for a campaign.
 
         Args:
@@ -201,10 +212,14 @@ class UpstreamClient:
         """
         return self.stations.list(campaign_id=campaign_id, **kwargs)
 
-    def upload_csv_data(self, campaign_id: str, station_id: str,
-                       sensors_file: Union[str, Path],
-                       measurements_file: Union[str, Path],
-                       **kwargs: Any) -> Dict[str, Any]:
+    def upload_csv_data(
+        self,
+        campaign_id: str,
+        station_id: str,
+        sensors_file: Union[str, Path],
+        measurements_file: Union[str, Path],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """Upload sensor data from CSV files.
 
         Args:
@@ -222,13 +237,17 @@ class UpstreamClient:
             station_id=station_id,
             sensors_file=sensors_file,
             measurements_file=measurements_file,
-            **kwargs
+            **kwargs,
         )
 
-    def upload_sensor_measurement_files(self, campaign_id: str, station_id: str,
-                                      sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
-                                      measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
-                                      chunk_size: int = 1000) -> Dict[str, object]:
+    def upload_sensor_measurement_files(
+        self,
+        campaign_id: str,
+        station_id: str,
+        sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
+        measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
+        chunk_size: int = 1000,
+    ) -> Dict[str, object]:
         """Upload sensor and measurement CSV files to process and store data in the database.
 
         This method uses the direct API endpoint for processing sensor and measurement files.
@@ -273,10 +292,16 @@ class UpstreamClient:
             station_id=station_id,
             sensors_file=sensors_file,
             measurements_file=measurements_file,
-            chunk_size=chunk_size
+            chunk_size=chunk_size,
         )
 
-    def create_measurement(self, campaign_id: str, station_id: str, sensor_id: str, measurement_in: MeasurementIn) -> MeasurementCreateResponse:
+    def create_measurement(
+        self,
+        campaign_id: str,
+        station_id: str,
+        sensor_id: str,
+        measurement_in: MeasurementIn,
+    ) -> MeasurementCreateResponse:
         """Create a new measurement.
 
         Args:
@@ -288,9 +313,13 @@ class UpstreamClient:
         Returns:
             Created Measurement instance
         """
-        return self.measurements.create(campaign_id, station_id, sensor_id, measurement_in)
+        return self.measurements.create(
+            campaign_id, station_id, sensor_id, measurement_in
+        )
 
-    def list_measurements(self, campaign_id: str, station_id: str, sensor_id: str, **kwargs: Any) -> ListMeasurementsResponsePagination:
+    def list_measurements(
+        self, campaign_id: str, station_id: str, sensor_id: str, **kwargs: Any
+    ) -> ListMeasurementsResponsePagination:
         """List measurements for a sensor.
 
         Args:
@@ -304,7 +333,9 @@ class UpstreamClient:
         """
         return self.measurements.list(campaign_id, station_id, sensor_id, **kwargs)
 
-    def get_measurements_with_confidence_intervals(self, campaign_id: str, station_id: str, sensor_id: str, **kwargs: Any) -> List[AggregatedMeasurement]:
+    def get_measurements_with_confidence_intervals(
+        self, campaign_id: str, station_id: str, sensor_id: str, **kwargs: Any
+    ) -> List[AggregatedMeasurement]:
         """Get sensor measurements with confidence intervals for visualization.
 
         Args:
@@ -316,9 +347,18 @@ class UpstreamClient:
         Returns:
             List of AggregatedMeasurement instances with confidence intervals
         """
-        return self.measurements.get_with_confidence_intervals(campaign_id, station_id, sensor_id, **kwargs)
+        return self.measurements.get_with_confidence_intervals(
+            campaign_id, station_id, sensor_id, **kwargs
+        )
 
-    def update_measurement(self, campaign_id: str, station_id: str, sensor_id: str, measurement_id: str, measurement_update: MeasurementUpdate) -> MeasurementCreateResponse:
+    def update_measurement(
+        self,
+        campaign_id: str,
+        station_id: str,
+        sensor_id: str,
+        measurement_id: str,
+        measurement_update: MeasurementUpdate,
+    ) -> MeasurementCreateResponse:
         """Update a measurement.
 
         Args:
@@ -331,9 +371,13 @@ class UpstreamClient:
         Returns:
             Updated Measurement instance
         """
-        return self.measurements.update(campaign_id, station_id, sensor_id, measurement_id, measurement_update)
+        return self.measurements.update(
+            campaign_id, station_id, sensor_id, measurement_id, measurement_update
+        )
 
-    def delete_measurements(self, campaign_id: str, station_id: str, sensor_id: str) -> bool:
+    def delete_measurements(
+        self, campaign_id: str, station_id: str, sensor_id: str
+    ) -> bool:
         """Delete all measurements for a sensor.
 
         Args:
@@ -346,10 +390,14 @@ class UpstreamClient:
         """
         return self.measurements.delete(campaign_id, station_id, sensor_id)
 
-    def upload_chunked_csv_data(self, campaign_id: str, station_id: str,
-                               sensors_file: Union[str, Path],
-                               measurements_file: Union[str, Path],
-                               **kwargs: Any) -> Dict[str, Any]:
+    def upload_chunked_csv_data(
+        self,
+        campaign_id: str,
+        station_id: str,
+        sensors_file: Union[str, Path],
+        measurements_file: Union[str, Path],
+        **kwargs: Any,
+    ) -> Dict[str, Any]:
         """Upload large sensor data from CSV files in chunks.
 
         Args:
@@ -367,11 +415,12 @@ class UpstreamClient:
             station_id=station_id,
             sensors_file=sensors_file,
             measurements_file=measurements_file,
-            **kwargs
+            **kwargs,
         )
 
-    def validate_files(self, sensors_file: Union[str, Path],
-                      measurements_file: Union[str, Path]) -> Dict[str, Any]:
+    def validate_files(
+        self, sensors_file: Union[str, Path], measurements_file: Union[str, Path]
+    ) -> Dict[str, Any]:
         """Validate CSV files without uploading.
 
         Args:

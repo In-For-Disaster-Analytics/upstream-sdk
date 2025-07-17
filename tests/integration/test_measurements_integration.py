@@ -14,27 +14,26 @@ from upstream_api_client.models import MeasurementIn, MeasurementUpdate
 
 
 # Test configuration
-BASE_URL = 'http://localhost:8000'
-CKAN_URL = 'http://ckan.tacc.cloud:5000'
+BASE_URL = "http://localhost:8000"
+CKAN_URL = "http://ckan.tacc.cloud:5000"
 
-USERNAME = os.environ.get('UPSTREAM_USERNAME')
-PASSWORD = os.environ.get('UPSTREAM_PASSWORD')
+USERNAME = os.environ.get("UPSTREAM_USERNAME")
+PASSWORD = os.environ.get("UPSTREAM_PASSWORD")
 
 
 @pytest.fixture
 def client():
     """Create authenticated client for testing."""
-    username = os.environ.get('UPSTREAM_USERNAME')
-    password = os.environ.get('UPSTREAM_PASSWORD')
+    username = os.environ.get("UPSTREAM_USERNAME")
+    password = os.environ.get("UPSTREAM_PASSWORD")
 
     if not username or not password:
-        pytest.skip("UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables required")
+        pytest.skip(
+            "UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables required"
+        )
 
     client = UpstreamClient(
-        username=username,
-        password=password,
-        base_url=BASE_URL,
-        ckan_url=CKAN_URL
+        username=username, password=password, base_url=BASE_URL, ckan_url=CKAN_URL
     )
 
     # Ensure authentication
@@ -54,7 +53,7 @@ def test_measurement_lifecycle(client):
         contact_email="integration@example.com",
         allocation="TACC",
         start_date=datetime.now(),
-        end_date=datetime.now() + timedelta(days=30)
+        end_date=datetime.now() + timedelta(days=30),
     )
 
     campaign = client.create_campaign(campaign_data)
@@ -70,7 +69,7 @@ def test_measurement_lifecycle(client):
             contact_name="Station Tester",
             contact_email="station@example.com",
             start_date=datetime.now(),
-            active=True
+            active=True,
         )
 
         station = client.create_station(campaign_id, station_data)
@@ -81,13 +80,23 @@ def test_measurement_lifecycle(client):
             # Upload a simple sensor via CSV
             import tempfile
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as sensors_file:
-                sensors_file.write("alias,variablename,units,postprocess,postprocessscript\n")
-                sensors_file.write("temp_sensor_01,Air Temperature,°C,True,wind_correction_script\n")
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as sensors_file:
+                sensors_file.write(
+                    "alias,variablename,units,postprocess,postprocessscript\n"
+                )
+                sensors_file.write(
+                    "temp_sensor_01,Air Temperature,°C,True,wind_correction_script\n"
+                )
                 sensors_file_path = sensors_file.name
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as measurements_file:
-                measurements_file.write("collectiontime,Lat_deg,Lon_deg,temp_sensor_01\n")
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as measurements_file:
+                measurements_file.write(
+                    "collectiontime,Lat_deg,Lon_deg,temp_sensor_01\n"
+                )
                 measurements_file.write("2024-01-15T10:30:00,30.2672,-97.7431,23.5\n")
                 measurements_file_path = measurements_file.name
 
@@ -97,11 +106,13 @@ def test_measurement_lifecycle(client):
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=sensors_file_path,
-                    measurements_file=measurements_file_path
+                    measurements_file=measurements_file_path,
                 )
 
                 # Get the sensor ID
-                sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
+                sensors = client.sensors.list(
+                    campaign_id=campaign_id, station_id=station_id
+                )
                 assert len(sensors.items) > 0
                 sensor = sensors.items[0]
                 sensor_id = str(sensor.id)
@@ -113,14 +124,14 @@ def test_measurement_lifecycle(client):
                     variablename="Air Temperature",
                     variabletype="temperature",
                     description="Test measurement",
-                    geometry="POINT(-97.7431 30.2672)"
+                    geometry="POINT(-97.7431 30.2672)",
                 )
 
                 created_measurement = client.measurements.create(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensor_id=sensor_id,
-                    measurement_in=measurement_data
+                    measurement_in=measurement_data,
                 )
 
                 assert created_measurement.id is not None
@@ -131,19 +142,21 @@ def test_measurement_lifecycle(client):
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensor_id=sensor_id,
-                    limit=10
+                    limit=10,
                 )
 
                 assert measurements.total > 0
                 print(f"Found {measurements.total} measurements")
 
                 # Test get measurements with confidence intervals
-                confidence_measurements = client.get_measurements_with_confidence_intervals(
-                    campaign_id=campaign_id,
-                    station_id=station_id,
-                    sensor_id=sensor_id,
-                    interval="hour",
-                    interval_value=1
+                confidence_measurements = (
+                    client.get_measurements_with_confidence_intervals(
+                        campaign_id=campaign_id,
+                        station_id=station_id,
+                        sensor_id=sensor_id,
+                        interval="hour",
+                        interval_value=1,
+                    )
                 )
 
                 print(f"Found {len(confidence_measurements)} aggregated measurements")
@@ -154,8 +167,7 @@ def test_measurement_lifecycle(client):
                     measurement_id = str(measurement.id)
 
                     update_data = MeasurementUpdate(
-                        measurementvalue=26.0,
-                        description="Updated test measurement"
+                        measurementvalue=26.0, description="Updated test measurement"
                     )
 
                     client.update_measurement(
@@ -163,18 +175,17 @@ def test_measurement_lifecycle(client):
                         station_id=station_id,
                         sensor_id=sensor_id,
                         measurement_id=measurement_id,
-                        measurement_update=update_data
+                        measurement_update=update_data,
                     )
 
                     updated_measurement = client.measurements.list(
                         campaign_id=campaign_id,
                         station_id=station_id,
                         sensor_id=sensor_id,
-                        limit=10
+                        limit=10,
                     )
 
                     # TODO: The updated measurement is not being returned in the list
-
 
                     # # #loop through the measurements and find the updated measurement
                     # # m = None
@@ -191,9 +202,7 @@ def test_measurement_lifecycle(client):
 
                 # Test delete measurements
                 result = client.delete_measurements(
-                    campaign_id=campaign_id,
-                    station_id=station_id,
-                    sensor_id=sensor_id
+                    campaign_id=campaign_id, station_id=station_id, sensor_id=sensor_id
                 )
 
                 assert result is True
@@ -201,9 +210,7 @@ def test_measurement_lifecycle(client):
 
                 # Verify deletion
                 measurements_after_delete = client.list_measurements(
-                    campaign_id=campaign_id,
-                    station_id=station_id,
-                    sensor_id=sensor_id
+                    campaign_id=campaign_id, station_id=station_id, sensor_id=sensor_id
                 )
 
                 assert len(measurements_after_delete.items) == 0
@@ -218,13 +225,14 @@ def test_measurement_lifecycle(client):
 
         finally:
             # Clean up station
-            #client.stations.delete(station_id, campaign_id)
+            # client.stations.delete(station_id, campaign_id)
             pass
 
     finally:
         # Clean up campaign
-        #client.campaigns.delete(campaign_id)
+        # client.campaigns.delete(campaign_id)
         pass
+
 
 def test_measurement_filtering(client):
     """Test measurement filtering and querying capabilities."""
@@ -238,7 +246,7 @@ def test_measurement_filtering(client):
         contact_email="integration@example.com",
         allocation="TACC",
         start_date=datetime.now(),
-        end_date=datetime.now() + timedelta(days=30)
+        end_date=datetime.now() + timedelta(days=30),
     )
 
     campaign = client.create_campaign(campaign_data)
@@ -254,7 +262,7 @@ def test_measurement_filtering(client):
             contact_name="Station Tester",
             contact_email="station@example.com",
             start_date=datetime.now(),
-            active=True
+            active=True,
         )
 
         station = client.create_station(campaign_id, station_data)
@@ -264,13 +272,23 @@ def test_measurement_filtering(client):
             # Create a sensor and some measurements
             import tempfile
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as sensors_file:
-                sensors_file.write("alias,variablename,units,postprocess,postprocessscript\n")
-                sensors_file.write("temp_sensor_02,Air Temperature,°C,True,wind_correction_script\n")
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as sensors_file:
+                sensors_file.write(
+                    "alias,variablename,units,postprocess,postprocessscript\n"
+                )
+                sensors_file.write(
+                    "temp_sensor_02,Air Temperature,°C,True,wind_correction_script\n"
+                )
                 sensors_file_path = sensors_file.name
 
-            with tempfile.NamedTemporaryFile(mode='w', suffix='.csv', delete=False, encoding='utf-8') as measurements_file:
-                measurements_file.write("collectiontime,Lat_deg,Lon_deg,temp_sensor_02\n")
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as measurements_file:
+                measurements_file.write(
+                    "collectiontime,Lat_deg,Lon_deg,temp_sensor_02\n"
+                )
                 measurements_file.write("2024-01-15T10:30:00,30.2672,-97.7431,23.5\n")
                 measurements_file.write("2024-01-15T11:30:00,30.2672,-97.7431,24.0\n")
                 measurements_file.write("2024-01-15T12:30:00,30.2672,-97.7431,24.5\n")
@@ -282,11 +300,13 @@ def test_measurement_filtering(client):
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=sensors_file_path,
-                    measurements_file=measurements_file_path
+                    measurements_file=measurements_file_path,
                 )
 
                 # Get the sensor ID
-                sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
+                sensors = client.sensors.list(
+                    campaign_id=campaign_id, station_id=station_id
+                )
                 assert len(sensors.items) > 0
                 sensor = sensors.items[0]
                 sensor_id = str(sensor.id)
@@ -300,7 +320,7 @@ def test_measurement_filtering(client):
                     station_id=station_id,
                     sensor_id=sensor_id,
                     start_date=start_date,
-                    end_date=end_date
+                    end_date=end_date,
                 )
 
                 print(f"Found {filtered_measurements.total} measurements in date range")
@@ -311,10 +331,12 @@ def test_measurement_filtering(client):
                     station_id=station_id,
                     sensor_id=sensor_id,
                     min_measurement_value=23.0,
-                    max_measurement_value=24.0
+                    max_measurement_value=24.0,
                 )
 
-                print(f"Found {value_filtered_measurements.total} measurements in value range")
+                print(
+                    f"Found {value_filtered_measurements.total} measurements in value range"
+                )
 
                 # Test pagination
                 paginated_measurements = client.list_measurements(
@@ -322,10 +344,12 @@ def test_measurement_filtering(client):
                     station_id=station_id,
                     sensor_id=sensor_id,
                     limit=2,
-                    page=1
+                    page=1,
                 )
 
-                print(f"Found {len(paginated_measurements.items)} measurements on page 1")
+                print(
+                    f"Found {len(paginated_measurements.items)} measurements on page 1"
+                )
 
                 # Test confidence intervals with different intervals
                 hourly_intervals = client.get_measurements_with_confidence_intervals(
@@ -333,7 +357,7 @@ def test_measurement_filtering(client):
                     station_id=station_id,
                     sensor_id=sensor_id,
                     interval="hour",
-                    interval_value=1
+                    interval_value=1,
                 )
 
                 print(f"Found {len(hourly_intervals)} hourly aggregated measurements")
@@ -346,9 +370,9 @@ def test_measurement_filtering(client):
         finally:
             # Clean up station
             pass
-            #client.stations.delete(station_id, campaign_id)
+            # client.stations.delete(station_id, campaign_id)
 
     finally:
         # Clean up campaign
         pass
-        #client.campaigns.delete(campaign_id)
+        # client.campaigns.delete(campaign_id)

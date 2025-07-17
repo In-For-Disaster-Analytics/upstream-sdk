@@ -55,7 +55,7 @@ class AuthManager:
                 response = auth_api.login_api_v1_token_post(
                     username=self.config.username,
                     password=self.config.password,
-                    grant_type="password"
+                    grant_type="password",
                 )
 
                 # Store token information
@@ -63,7 +63,7 @@ class AuthManager:
                 self.configuration.access_token = response.access_token
 
                 # Calculate expiration time (default to 1 hour if not provided)
-                expires_in = getattr(response, 'expires_in', 3600)
+                expires_in = getattr(response, "expires_in", 3600)
                 self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
 
                 logger.info("Successfully authenticated with Upstream API")

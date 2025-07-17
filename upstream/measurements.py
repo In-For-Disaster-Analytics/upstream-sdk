@@ -14,7 +14,7 @@ from upstream_api_client.models import (
     MeasurementUpdate,
     MeasurementCreateResponse,
     ListMeasurementsResponsePagination,
-    AggregatedMeasurement
+    AggregatedMeasurement,
 )
 from upstream_api_client.rest import ApiException
 
@@ -69,7 +69,10 @@ class MeasurementManager:
         if not sensor_id:
             raise ValidationError("Sensor ID is required", field="sensor_id")
         if not isinstance(measurement_in, MeasurementIn):
-            raise ValidationError("measurement_in must be a MeasurementIn instance", field="measurement_in")
+            raise ValidationError(
+                "measurement_in must be a MeasurementIn instance",
+                field="measurement_in",
+            )
 
         try:
             campaign_id_int = int(campaign_id)
@@ -82,17 +85,21 @@ class MeasurementManager:
                     campaign_id=campaign_id_int,
                     station_id=station_id_int,
                     sensor_id=sensor_id_int,
-                    measurement_in=measurement_in
+                    measurement_in=measurement_in,
                 )
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 422:
                 raise ValidationError(f"Measurement validation failed: {e}") from e
             else:
-                raise APIError(f"Failed to create measurement: {e}", status_code=e.status) from e
+                raise APIError(
+                    f"Failed to create measurement: {e}", status_code=e.status
+                ) from e
         except Exception as e:
             raise APIError(f"Failed to create measurement: {e}") from e
 
@@ -156,13 +163,15 @@ class MeasurementManager:
                     max_measurement_value=max_measurement_value,
                     limit=limit,
                     page=page,
-                    downsample_threshold=downsample_threshold
+                    downsample_threshold=downsample_threshold,
                 )
 
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}"
+            ) from exc
         except ApiException as e:
             raise APIError(f"Failed to list measurements: {e}", status_code=e.status)
         except Exception as e:
@@ -225,15 +234,20 @@ class MeasurementManager:
                     start_date=start_date,
                     end_date=end_date,
                     min_value=min_value,
-                    max_value=max_value
+                    max_value=max_value,
                 )
 
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}"
+            ) from exc
         except ApiException as e:
-            raise APIError(f"Failed to get measurements with confidence intervals: {e}", status_code=e.status)
+            raise APIError(
+                f"Failed to get measurements with confidence intervals: {e}",
+                status_code=e.status,
+            )
         except Exception as e:
             raise APIError(f"Failed to get measurements with confidence intervals: {e}")
 
@@ -271,7 +285,10 @@ class MeasurementManager:
         if not measurement_id:
             raise ValidationError("Measurement ID is required", field="measurement_id")
         if not isinstance(measurement_update, MeasurementUpdate):
-            raise ValidationError("measurement_update must be a MeasurementUpdate instance", field="measurement_update")
+            raise ValidationError(
+                "measurement_update must be a MeasurementUpdate instance",
+                field="measurement_update",
+            )
 
         try:
             campaign_id_int = int(campaign_id)
@@ -287,20 +304,26 @@ class MeasurementManager:
                     station_id=station_id_int,
                     sensor_id=sensor_id_int,
                     measurement_id=measurement_id_int,
-                    measurement_update=measurement_update
+                    measurement_update=measurement_update,
                 )
 
                 return response
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}, measurement_id={measurement_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}, measurement_id={measurement_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 404:
-                raise APIError(f"Measurement not found: {measurement_id}", status_code=404) from e
+                raise APIError(
+                    f"Measurement not found: {measurement_id}", status_code=404
+                ) from e
             elif e.status == 422:
                 raise ValidationError(f"Measurement validation failed: {e}") from e
             else:
-                raise APIError(f"Failed to update measurement: {e}", status_code=e.status) from e
+                raise APIError(
+                    f"Failed to update measurement: {e}", status_code=e.status
+                ) from e
         except Exception as e:
             raise APIError(f"Failed to update measurement: {e}") from e
 
@@ -343,18 +366,24 @@ class MeasurementManager:
                 measurements_api.delete_sensor_measurements_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_measurements_delete(
                     campaign_id=campaign_id_int,
                     station_id=station_id_int,
-                    sensor_id=sensor_id_int
+                    sensor_id=sensor_id_int,
                 )
 
                 logger.info(f"Deleted measurements for sensor: {sensor_id}")
                 return True
 
         except ValueError as exc:
-            raise ValidationError(f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}") from exc
+            raise ValidationError(
+                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}"
+            ) from exc
         except ApiException as e:
             if e.status == 404:
-                raise APIError(f"Measurements not found for sensor: {sensor_id}", status_code=404)
+                raise APIError(
+                    f"Measurements not found for sensor: {sensor_id}", status_code=404
+                )
             else:
-                raise APIError(f"Failed to delete measurements: {e}", status_code=e.status)
+                raise APIError(
+                    f"Failed to delete measurements: {e}", status_code=e.status
+                )
         except Exception as e:
             raise APIError(f"Failed to delete measurements: {e}")
