@@ -29,11 +29,32 @@ from upstream import UpstreamClient
 client = UpstreamClient(username="researcher", password="password")
 
 # Create campaign and station
-campaign = client.create_campaign("Hurricane Monitoring 2024")
-station = client.create_station(campaign.id, name="Galveston Pier", lat=29.3, lon=-94.8)
+from upstream_api_client.models import CampaignsIn, StationCreate
+from datetime import datetime, timedelta
+
+campaign_data = CampaignsIn(
+    name="Hurricane Monitoring 2024",
+    description="Hurricane monitoring campaign",
+    contact_name="Dr. Jane Smith",
+    contact_email="jane.smith@university.edu",
+    allocation="TACC",
+    start_date=datetime.now(),
+    end_date=datetime.now() + timedelta(days=365)
+)
+campaign = client.create_campaign(campaign_data)
+
+station_data = StationCreate(
+    name="Galveston Pier",
+    description="Hurricane monitoring station at Galveston Pier",
+    contact_name="Dr. Jane Smith",
+    contact_email="jane.smith@university.edu",
+    start_date=datetime.now(),
+    active=True
+)
+station = client.create_station(campaign.id, station_data)
 
 # Upload sensor data
-result = client.upload_data(
+result = client.upload_csv_data(
     campaign_id=campaign.id,
     station_id=station.id,
     sensors_file="sensors.csv",
@@ -59,12 +80,13 @@ Perfect for automated sensor networks:
 ```python
 # Scheduled data upload every 6 hours
 def automated_upload():
-    data = collect_sensor_readings()
-    client.upload_measurements(
+    # Collect sensor readings and save to CSV files
+    sensors_file, measurements_file = collect_sensor_readings()
+    client.upload_csv_data(
         campaign_id=CAMPAIGN_ID,
         station_id=STATION_ID,
-        data=data,
-        auto_publish=True
+        sensors_file=sensors_file,
+        measurements_file=measurements_file
     )
 ```
 
@@ -98,24 +120,36 @@ client = UpstreamClient(
 ### 2. Create Campaign
 
 ```python
-campaign = client.create_campaign(
+from upstream_api_client.models import CampaignsIn
+from datetime import datetime, timedelta
+
+campaign_data = CampaignsIn(
     name="Air Quality Monitoring 2024",
-    description="Urban air quality sensor network deployment"
+    description="Urban air quality sensor network deployment",
+    contact_name="Dr. Jane Smith",
+    contact_email="jane.smith@university.edu",
+    allocation="TACC",
+    start_date=datetime.now(),
+    end_date=datetime.now() + timedelta(days=365)
 )
+campaign = client.create_campaign(campaign_data)
 ```
 
 ### 3. Register Monitoring Station
 
 ```python
-station = client.create_station(
-    campaign_id=campaign.id,
+from upstream_api_client.models import StationCreate
+from datetime import datetime
+
+station_data = StationCreate(
     name="Downtown Monitor",
     description="City center air quality station",
-    latitude=30.2672,
-    longitude=-97.7431,
     contact_name="Dr. Jane Smith",
-    contact_email="jane.smith@university.edu"
+    contact_email="jane.smith@university.edu",
+    start_date=datetime.now(),
+    active=True
 )
+station = client.create_station(campaign.id, station_data)
 ```
 
 ### 4. Upload Sensor Data
@@ -169,15 +203,14 @@ def hourly_data_upload():
         sensor_data = collect_from_weather_station()
 
         # Upload to Upstream
-        result = client.upload_measurements(
+        result = client.upload_csv_data(
             campaign_id=CAMPAIGN_ID,
             station_id=STATION_ID,
-            data=sensor_data,
-            auto_chunk=True,
-            retry_failed=True
+            sensors_file=sensors_file,
+            measurements_file=measurements_file
         )
 
-        logger.info(f"Successfully uploaded {result.measurements_added} measurements")
+        logger.info(f"Successfully uploaded {result.sensors_processed} sensors and {result.measurements_added} measurements")
 
     except Exception as e:
         logger.error(f"Upload failed: {e}")
@@ -190,14 +223,26 @@ schedule.every().hour.do(hourly_data_upload)
 ### Large Dataset Handling
 
 ```python
-# Automatic chunking for files > 50MB
-result = client.upload_csv_data(
+# For large files, use chunked upload
+result = client.upload_chunked_csv_data(
     campaign_id=campaign.id,
     station_id=station.id,
+    sensors_file="sensors.csv",
     measurements_file="large_dataset.csv",  # 500MB file
-    chunk_size=10000,  # rows per chunk
-    max_chunk_size_mb=30,  # max size per chunk
-    parallel_uploads=True  # upload chunks in parallel
+    chunk_size=10000  # rows per chunk
+)
+```
+
+### Advanced Upload Options
+
+```python
+# For more control over uploads, use the advanced method
+result = client.upload_sensor_measurement_files(
+    campaign_id=campaign.id,
+    station_id=station.id,
+    sensors_file="sensors.csv",  # Can be file path, bytes, or (filename, bytes) tuple
+    measurements_file="measurements.csv",  # Can be file path, bytes, or (filename, bytes) tuple
+    chunk_size=1000  # Process in chunks of 1000 rows
 )
 ```
 
@@ -215,16 +260,12 @@ def custom_pipeline():
     # Transform to Upstream format
     upstream_data = transform_data(cleaned_data)
 
-    # Upload with custom metadata
-    client.upload_measurements(
+    # Upload processed data
+    client.upload_csv_data(
         campaign_id=campaign.id,
         station_id=station.id,
-        data=upstream_data,
-        metadata={
-            "processing_version": "2.1",
-            "qc_flags_applied": ["range_check", "spike_detection"],
-            "data_source": "automated_weather_station"
-        }
+        sensors_file="processed_sensors.csv",
+        measurements_file="processed_measurements.csv"
     )
 ```
 
@@ -256,13 +297,35 @@ def custom_pipeline():
 
 ## API Reference
 
+### UpstreamClient Methods
+
+#### Campaign Management
+- **`create_campaign(campaign_in: CampaignsIn)`** - Create a new monitoring campaign
+- **`get_campaign(campaign_id: str)`** - Get campaign by ID
+- **`list_campaigns(**kwargs)`** - List all campaigns
+
+#### Station Management
+- **`create_station(campaign_id: str, station_create: StationCreate)`** - Create a new monitoring station
+- **`get_station(station_id: str, campaign_id: str)`** - Get station by ID
+- **`list_stations(campaign_id: str, **kwargs)`** - List stations for a campaign
+
+#### Data Upload
+- **`upload_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Upload CSV files
+- **`upload_sensor_measurement_files(campaign_id: str, station_id: str, sensors_file: Union[str, bytes, Tuple], measurements_file: Union[str, bytes, Tuple], chunk_size: int = 1000)`** - Advanced upload with chunking
+- **`upload_chunked_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Chunked upload for large files
+
+#### Utilities
+- **`validate_files(sensors_file: str, measurements_file: str)`** - Validate CSV files
+- **`get_file_info(file_path: str)`** - Get information about CSV files
+- **`authenticate()`** - Test authentication
+- **`logout()`** - Logout and invalidate tokens
+- **`publish_to_ckan(campaign_id: str, **kwargs)`** - Publish data to CKAN
+
 ### Core Classes
 
 - **`UpstreamClient`** - Main SDK interface
-- **`Campaign`** - Campaign management
-- **`Station`** - Station operations
-- **`DataUploader`** - Data upload functionality
-- **`CKANIntegration`** - CKAN dataset management
+- **`CampaignsIn`** - Campaign creation model
+- **`StationCreate`** - Station creation model
 
 ### Authentication
 
