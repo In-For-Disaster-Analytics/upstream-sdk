@@ -334,7 +334,7 @@ class TestCKANCampaignPublishing:
                 pass
 
     def test_publish_campaign_update_existing(
-        self, ckan_client, sample_campaign_response, temp_sensor_csv
+        self, ckan_client: CKANIntegration, sample_campaign_response, temp_sensor_csv
     ):
         """Test updating an existing campaign dataset."""
         campaign_id = sample_campaign_response.id

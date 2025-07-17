@@ -152,25 +152,15 @@ class CKANIntegration:
         # Get current dataset
         current_dataset = self.get_dataset(dataset_id)
 
-        # Only include updatable fields to avoid 400 BAD REQUEST errors
-        # Read-only fields that should be excluded from updates
-        read_only_fields = {
-            'revision_id', 'revision_timestamp', 'metadata_created', 'metadata_modified',
-            'creator_user_id', 'num_resources', 'num_tags', 'relationships_as_subject',
-            'relationships_as_object', 'tracking_summary', 'organization', 'groups',
-            'isopen', 'url', 'ckan_url', 'download_url', 'revision_timestamp',
-            'id', 'type', 'state', 'license_id', 'license_title', 'license_url',
-            'maintainer', 'maintainer_email', 'author', 'author_email'
-        }
-
-        # Create clean dataset data with only updatable fields
-        updatable_data = {
-            k: v for k, v in current_dataset.items()
-            if k not in read_only_fields and v is not None
-        }
-
         # Update with new values
-        updated_data = {**updatable_data, **kwargs}
+        updated_data = {**current_dataset, **kwargs}
+
+        # Ensure tags are properly formatted as list of dictionaries
+        if "tags" in updated_data:
+            tags = updated_data["tags"]
+            if tags and isinstance(tags[0], str):
+                # Convert string tags to dict format
+                updated_data["tags"] = [{"name": tag} for tag in tags]
 
         try:
             response = self.session.post(
@@ -421,12 +411,16 @@ class CKANIntegration:
 
         try:
             # Create or update dataset
+            should_update = False
             try:
                 dataset = self.get_dataset(dataset_name)
-                # Update existing dataset
-                dataset = self.update_dataset(dataset_name, **dataset_metadata)
+                should_update = True
             except APIError:
-                # Create new dataset
+                should_update = False
+
+            if should_update:
+                dataset = self.update_dataset(dataset_name, **dataset_metadata)
+            else:
                 dataset = self.create_dataset(**dataset_metadata)
 
             # Add resources for different data types
