@@ -556,7 +556,7 @@ class TestCKANErrorHandling:
         ckan = CKANIntegration("http://test.example.com")
 
         with pytest.raises(APIError, match="Failed to create CKAN dataset"):
-            ckan.create_dataset(name="test", title="Test")
+            ckan.create_dataset(name="test-dataset", title="Test")
 
     @patch("upstream.ckan.requests.Session.post")
     def test_timeout_error_handling(self, mock_post):
@@ -566,4 +566,4 @@ class TestCKANErrorHandling:
         ckan = CKANIntegration("http://test.example.com")
 
         with pytest.raises(APIError, match="Failed to create CKAN dataset"):
-            ckan.create_dataset(name="test", title="Test")
+            ckan.create_dataset(name="test-dataset", title="Test")
