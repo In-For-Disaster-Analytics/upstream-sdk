@@ -5,15 +5,13 @@ This module handles data validation and upload operations using the generated Op
 """
 
 import csv
-import json
-from typing import Dict, Any, List, Optional, Union, Iterator
+from typing import Dict, Any, List, Union, Tuple
 from pathlib import Path
-import logging
 
 from upstream_api_client.api import UploadfileCsvApi
 from upstream_api_client.rest import ApiException
 
-from .exceptions import ValidationError, UploadError, APIError
+from .exceptions import ValidationError, UploadError
 from .utils import ConfigManager, validate_file_size, chunk_file, get_logger
 from .auth import AuthManager
 
@@ -264,7 +262,7 @@ class DataUploader:
             if e.status == 422:
                 raise ValidationError(f"Data validation failed: {e}")
             else:
-                raise UploadError(f"Failed to upload data: {e}", status_code=e.status)
+                raise UploadError(f"Failed to upload data: {e}")
         except Exception as e:
             logger.error(f"Data upload failed: {e}")
             raise UploadError(f"Failed to upload data: {e}")
@@ -379,6 +377,169 @@ class DataUploader:
                             Path(chunk_file_path).unlink()
                         except Exception as e:
                             logger.warning(f"Failed to delete chunk file {chunk_file_path}: {e}")
+
+    def prepare_files(
+        self,
+        campaign_id: int,
+        station_id: int,
+        sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
+        measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
+        chunk_size: int = 1000
+    ) -> Tuple[Union[bytes, Tuple[str, bytes]], List[Tuple[str, bytes]]]:
+        """
+        Prepare files for upload with validation and chunking.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            sensors_file: File path, bytes, or tuple (filename, bytes) containing sensor metadata
+            measurements_file: File path, bytes, or tuple (filename, bytes) containing measurement data
+            chunk_size: Number of measurement lines per chunk (default: 1000)
+
+        Returns:
+            Tuple of (prepared_sensors_file, measurements_chunks)
+
+        Raises:
+            ValidationError: If files are invalid or cannot be processed
+        """
+        # Validate files exist and are accessible
+        if not sensors_file:
+            raise ValidationError("Sensors file is required", field="sensors_file")
+        if not measurements_file:
+            raise ValidationError("Measurements file is required", field="measurements_file")
+
+        # Prepare sensors file
+        upload_file_sensors = self._prepare_file_input(sensors_file, "sensors")
+
+        # Process measurements file in chunks
+        measurements_chunks = self._split_measurements_file(measurements_file, chunk_size)
+
+        return upload_file_sensors, measurements_chunks
+
+    def _prepare_file_input(
+        self,
+        file_input: Union[str, Path, bytes, Tuple[str, bytes]],
+        file_type: str
+    ) -> Union[bytes, Tuple[str, bytes]]:
+        """
+        Prepare file input for upload API.
+
+        Args:
+            file_input: File path, bytes, or tuple (filename, bytes)
+            file_type: Type of file for error messages
+
+        Returns:
+            Prepared file input in the format expected by the API
+
+        Raises:
+            ValidationError: If file cannot be read or is invalid
+        """
+        try:
+            if isinstance(file_input, (str, Path)):
+                # File path - read the file
+                file_path = Path(file_input)
+                if not file_path.exists():
+                    raise ValidationError(f"{file_type.capitalize()} file not found: {file_input}")
+
+                with open(file_path, 'rb') as f:
+                    content = f.read()
+
+                # Return as tuple (filename, bytes) for multipart upload
+                return (file_path.name, content)
+
+            elif isinstance(file_input, bytes):
+                # Raw bytes - return as is
+                return file_input
+
+            elif isinstance(file_input, tuple) and len(file_input) == 2:
+                # Tuple (filename, bytes) - validate and return
+                filename, content = file_input
+                if not isinstance(filename, str) or not isinstance(content, bytes):
+                    raise ValidationError(f"Invalid {file_type} file tuple format: expected (str, bytes)")
+                return file_input
+
+            else:
+                raise ValidationError(f"Invalid {file_type} file format: expected path, bytes, or (filename, bytes) tuple")
+
+        except (OSError, IOError) as e:
+            raise ValidationError(f"Failed to read {file_type} file: {e}") from e
+
+    def _split_measurements_file(
+        self,
+        measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
+        chunk_size: int
+    ) -> List[Tuple[str, bytes]]:
+        """
+        Split measurements file into chunks for upload.
+
+        Args:
+            measurements_file: File path, bytes, or tuple (filename, bytes) containing measurement data
+            chunk_size: Number of lines per chunk (excluding header)
+
+        Returns:
+            List of tuples (filename, bytes) for each chunk
+
+        Raises:
+            ValidationError: If file cannot be read or is invalid
+        """
+        try:
+            # Get the file content
+            if isinstance(measurements_file, (str, Path)):
+                file_path = Path(measurements_file)
+                if not file_path.exists():
+                    raise ValidationError(f"Measurements file not found: {measurements_file}")
+
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    lines = f.readlines()
+                original_filename = file_path.name
+
+            elif isinstance(measurements_file, bytes):
+                lines = measurements_file.decode('utf-8').splitlines(keepends=True)
+                original_filename = "measurements.csv"
+
+            elif isinstance(measurements_file, tuple) and len(measurements_file) == 2:
+                filename, content = measurements_file
+                if not isinstance(filename, str) or not isinstance(content, bytes):
+                    raise ValidationError("Invalid measurements file tuple format: expected (str, bytes)")
+                lines = content.decode('utf-8').splitlines(keepends=True)
+                original_filename = filename
+
+            else:
+                raise ValidationError("Invalid measurements file format: expected path, bytes, or (filename, bytes) tuple")
+
+            if not lines:
+                raise ValidationError("Measurements file is empty")
+
+            # Ensure we have a header
+            header = lines[0]
+            data_lines = lines[1:]
+
+            if not data_lines:
+                return [('', b'')]
+
+            # Split data lines into chunks
+            chunks = []
+            for i in range(0, len(data_lines), chunk_size):
+                chunk_data_lines = data_lines[i:i + chunk_size]
+
+                # Create chunk content with header + data lines
+                chunk_content = header + ''.join(chunk_data_lines)
+                chunk_bytes = chunk_content.encode('utf-8')
+
+                # Create filename for this chunk
+                base_name = Path(original_filename).stem
+                extension = Path(original_filename).suffix
+                chunk_filename = f"{base_name}_chunk_{i//chunk_size + 1}{extension}"
+
+                chunks.append((chunk_filename, chunk_bytes))
+
+            logger.info(f"Split measurements file into {len(chunks)} chunks of {chunk_size} lines each")
+            return chunks
+
+        except (OSError, IOError) as e:
+            raise ValidationError(f"Failed to read measurements file: {e}") from e
+        except UnicodeDecodeError as e:
+            raise ValidationError(f"Failed to decode measurements file (must be UTF-8): {e}") from e
 
     def validate_files(self,
                       sensors_file: Union[str, Path],
