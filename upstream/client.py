@@ -433,23 +433,23 @@ class UpstreamClient:
         """
         return self.data.get_file_info(file_path)
 
-    def publish_to_ckan(self, campaign_id: str, **kwargs: Any) -> Dict[str, Any]:
-        """Publish campaign data to CKAN.
+    # def publish_to_ckan(self, campaign_id: str, **kwargs: Any) -> Dict[str, Any]:
+    #     """Publish campaign data to CKAN.
 
-        Args:
-            campaign_id: Campaign ID
-            **kwargs: Additional CKAN parameters
+    #     Args:
+    #         campaign_id: Campaign ID
+    #         **kwargs: Additional CKAN parameters
 
-        Returns:
-            CKAN publication result
+    #     Returns:
+    #         CKAN publication result
 
-        Raises:
-            ConfigurationError: If CKAN integration not configured
-        """
-        if not self.ckan:
-            raise ConfigurationError("CKAN integration not configured")
+    #     Raises:
+    #         ConfigurationError: If CKAN integration not configured
+    #     """
+    #     if not self.ckan:
+    #         raise ConfigurationError("CKAN integration not configured")
 
-        return self.ckan.publish_campaign(campaign_id=campaign_id, **kwargs)
+    #     return self.ckan.publish_campaign(campaign_id=campaign_id, **kwargs)
 
     def logout(self) -> None:
         """Logout and invalidate authentication."""

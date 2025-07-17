@@ -327,7 +327,7 @@ def chunk_file(
 
                 chunk_files.append(temp_file.name)
 
-            current_chunk_writer.writerow(row)
+            current_chunk_writer.writerow(row)  # type: ignore
             current_chunk_size += 1
 
         if current_chunk_file is not None:
