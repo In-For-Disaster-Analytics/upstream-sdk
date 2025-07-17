@@ -191,8 +191,11 @@ def test_upload_csv_files(client):
         finally:
             for sensor in sensors.items:
                 client.measurements.delete(campaign_id, station_id, sensor.id)
+
+            for sensor in sensors.items:
                 client.sensors.delete(sensor.id, station_id, campaign_id)
-                client.stations.delete(station_id, campaign_id)
+
+            client.stations.delete(station_id, campaign_id)
 
             # Check the sensors
             #sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)

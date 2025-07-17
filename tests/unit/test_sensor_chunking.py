@@ -7,7 +7,7 @@ import pytest
 from pathlib import Path
 from unittest.mock import Mock
 
-from upstream.sensors import SensorManager
+from upstream.data import DataUploader
 from upstream.auth import AuthManager
 from upstream.exceptions import ValidationError
 
@@ -18,7 +18,8 @@ class TestSensorChunking:
     def setup_method(self):
         """Set up test fixtures."""
         self.auth_manager = Mock(spec=AuthManager)
-        self.sensor_manager = SensorManager(self.auth_manager)
+        self.auth_manager.config = Mock()
+        self.data_uploader = DataUploader(self.auth_manager)
 
     def test_split_measurements_file_path(self):
         """Test splitting measurements file from file path."""
@@ -31,7 +32,7 @@ class TestSensorChunking:
 
         try:
             # Test with default chunk size (1000)
-            chunks = self.sensor_manager._split_measurements_file(file_path, 1000)
+            chunks = self.data_uploader._split_measurements_file(file_path, 1000)
 
             assert len(chunks) == 3  # Should create 3 chunks: 1000, 1000, 500
             assert "_1.csv" in chunks[0][0]
@@ -69,7 +70,7 @@ class TestSensorChunking:
         content_bytes = ''.join(content_lines).encode('utf-8')
 
         # Test with custom chunk size (500)
-        chunks = self.sensor_manager._split_measurements_file(content_bytes, 500)
+        chunks = self.data_uploader._split_measurements_file(content_bytes, 500)
 
         assert len(chunks) == 3  # Should create 3 chunks: 500, 500, 500
         assert "_1.csv" in chunks[0][0]
@@ -94,7 +95,7 @@ class TestSensorChunking:
         file_tuple = ("test_measurements.csv", content_bytes)
 
         # Test with custom chunk size (300)
-        chunks = self.sensor_manager._split_measurements_file(file_tuple, 300)
+        chunks = self.data_uploader._split_measurements_file(file_tuple, 300)
 
         assert len(chunks) == 3  # Should create 3 chunks: 300, 300, 200
         assert "_1.csv" in chunks[0][0]
@@ -121,19 +122,19 @@ class TestSensorChunking:
             file_path = f.name
 
         try:
-            assert self.sensor_manager._split_measurements_file(file_path, 1000) == [('', b'')]
+            assert self.data_uploader._split_measurements_file(file_path, 1000) == [('', b'')]
         finally:
             Path(file_path).unlink(missing_ok=True)
 
     def test_split_measurements_file_invalid_format(self):
         """Test splitting measurements file with invalid format."""
         with pytest.raises(ValidationError, match="Invalid measurements file format"):
-            self.sensor_manager._split_measurements_file(123, 1000)  # Invalid type
+            self.data_uploader._split_measurements_file(123, 1000)  # Invalid type
 
     def test_split_measurements_file_nonexistent(self):
         """Test splitting nonexistent measurements file."""
         with pytest.raises(ValidationError, match="Measurements file not found"):
-            self.sensor_manager._split_measurements_file("nonexistent_file.csv", 1000)
+            self.data_uploader._split_measurements_file("nonexistent_file.csv", 1000)
 
     def test_split_measurements_file_invalid_encoding(self):
         """Test splitting measurements file with invalid encoding."""
@@ -146,7 +147,7 @@ class TestSensorChunking:
 
         try:
             with pytest.raises(ValidationError, match="Failed to decode measurements file"):
-                self.sensor_manager._split_measurements_file(file_path, 1000)
+                self.data_uploader._split_measurements_file(file_path, 1000)
         finally:
             Path(file_path).unlink(missing_ok=True)
 
@@ -160,7 +161,7 @@ class TestSensorChunking:
 
         try:
             # Test with chunk size smaller than total lines
-            chunks = self.sensor_manager._split_measurements_file(file_path, 3)
+            chunks = self.data_uploader._split_measurements_file(file_path, 3)
 
             assert len(chunks) == 4  # Should create 4 chunks: 3, 3, 3, 1
             assert "_1.csv" in chunks[0][0]
