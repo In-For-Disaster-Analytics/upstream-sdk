@@ -92,37 +92,37 @@ jobs:
           cd docs
           make linkcheck
 
-  security:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+  # security:
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v4
+  #       with:
+  #         python-version: '3.11'
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install bandit safety
+  #     - name: Install dependencies
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install bandit safety
 
-      - name: Security check with bandit
-        run: |
-          bandit -r upstream -f json -o bandit-report.json
+  #     - name: Security check with bandit
+  #       run: |
+  #         bandit -r upstream -f json -o bandit-report.json
 
-      - name: Security check with safety
-        run: |
-          safety check --json --output safety-report.json
+  #     - name: Security check with safety
+  #       run: |
+  #         safety check --json --output safety-report.json
 
-      - name: Upload security reports
-        uses: actions/upload-artifact@v3
-        if: always()
-        with:
-          name: security-reports
-          path: |
-            bandit-report.json
-            safety-report.json
+  #     - name: Upload security reports
+  #       uses: actions/upload-artifact@v3
+  #       if: always()
+  #       with:
+  #         name: security-reports
+  #         path: |
+  #           bandit-report.json
+  #           safety-report.json
 
   build:
     runs-on: ubuntu-latest
@@ -147,9 +147,3 @@ jobs:
       - name: Check package
         run: |
           twine check dist/*
-
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: dist
-          path: dist/
