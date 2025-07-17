@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Union
 
 import requests
+from upstream_api_client.models.get_campaign_response import GetCampaignResponse
 
 from .exceptions import APIError
 
@@ -27,6 +28,7 @@ class CKANIntegration:
             ckan_url: CKAN portal URL
             config: Additional CKAN configuration
         """
+        print(config)
         self.ckan_url = ckan_url.rstrip("/")
         self.config = config or {}
         self.session = requests.Session()
@@ -64,15 +66,25 @@ class CKANIntegration:
         Returns:
             Created dataset information
         """
+
+        # Determine organization - use parameter or fall back to config
+        owner_org = organization or self.config.get("ckan_organization")
+
         # Prepare dataset metadata
         dataset_data = {
             "name": name,
             "title": title,
             "notes": description,
-            "owner_org": organization or self.config.get("default_organization"),
             "tags": [{"name": tag} for tag in (tags or [])],
             **kwargs,
         }
+
+        # Add owner_org if available
+        if owner_org:
+            dataset_data["owner_org"] = owner_org
+        elif not name.startswith("test-"):
+            # Only require organization for non-test datasets
+            raise APIError("Organization is required for dataset creation. Please set CKAN_ORGANIZATION environment variable or pass organization parameter.")
 
         # Remove None values
         dataset_data = {k: v for k, v in dataset_data.items() if v is not None}
@@ -329,10 +341,16 @@ class CKANIntegration:
         except requests.exceptions.RequestException as e:
             raise APIError(f"Failed to list CKAN datasets: {e}")
 
+    def sanitize_title(self, title: str) -> str:
+        """
+        Sanitize a title to be used as a CKAN dataset title.
+        """
+        return title.replace(" ", "_").replace("-", "_")
+
     def publish_campaign(
         self,
         campaign_id: str,
-        campaign_data: Dict[str, Any],
+        campaign_data: GetCampaignResponse,
         auto_publish: bool = True,
         **kwargs: Any,
     ) -> Dict[str, Any]:
@@ -354,13 +372,18 @@ class CKANIntegration:
         """
         # Create dataset name from campaign
         dataset_name = f"upstream-campaign-{campaign_id}"
-        dataset_title = campaign_data.get("name", f"Campaign {campaign_id}")
+        dataset_title = campaign_data.name
+
+        if campaign_data.description:
+            description = campaign_data.description
+        else:
+            description = f"\nSensor Types: {', '.join(campaign_data.summary.sensor_types)}"
 
         # Prepare dataset metadata
         dataset_metadata = {
             "name": dataset_name,
-            "title": dataset_title,
-            "notes": campaign_data.get("description", ""),
+            "title": self.sanitize_title(dataset_title),
+            "notes": description,
             "tags": ["environmental", "sensors", "upstream"],
             "extras": [
                 {"key": "campaign_id", "value": campaign_id},

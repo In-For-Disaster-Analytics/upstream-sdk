@@ -55,6 +55,7 @@ class UpstreamClient:
         password: Optional[str] = None,
         base_url: Optional[str] = None,
         ckan_url: Optional[str] = None,
+        ckan_organization: Optional[str] = None,
         config_file: Optional[Union[str, Path]] = None,
         **kwargs: Any,
     ) -> None:
@@ -65,6 +66,7 @@ class UpstreamClient:
             password: Password for authentication
             base_url: Base URL for the Upstream API
             ckan_url: URL for CKAN integration
+            ckan_organization: CKAN organization name
             config_file: Path to configuration file
             **kwargs: Additional configuration options
 
@@ -80,6 +82,7 @@ class UpstreamClient:
                 password=password,
                 base_url=base_url,
                 ckan_url=ckan_url,
+                ckan_organization=ckan_organization,
                 **kwargs,
             )
 
@@ -124,6 +127,7 @@ class UpstreamClient:
         - UPSTREAM_PASSWORD: Password for authentication
         - UPSTREAM_BASE_URL: Base URL for the Upstream API
         - CKAN_URL: URL for CKAN integration
+        - CKAN_ORGANIZATION: CKAN organization name
 
         Returns:
             Configured UpstreamClient instance
@@ -133,6 +137,7 @@ class UpstreamClient:
             password=os.environ.get("UPSTREAM_PASSWORD"),
             base_url=os.environ.get("UPSTREAM_BASE_URL"),
             ckan_url=os.environ.get("CKAN_URL"),
+            ckan_organization=os.environ.get("CKAN_ORGANIZATION"),
         )
 
     def authenticate(self) -> bool:
