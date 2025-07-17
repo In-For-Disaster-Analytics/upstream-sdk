@@ -15,6 +15,7 @@ from upstream_api_client.rest import ApiException
 
 from .exceptions import ValidationError, UploadError, APIError
 from .utils import ConfigManager, validate_file_size, chunk_file, get_logger
+from .auth import AuthManager
 
 logger = get_logger(__name__)
 
@@ -173,7 +174,7 @@ class DataUploader:
     Handles data upload operations using the OpenAPI client.
     """
 
-    def __init__(self, auth_manager) -> None:
+    def __init__(self, auth_manager: AuthManager) -> None:
         """
         Initialize data uploader.
 
@@ -189,7 +190,7 @@ class DataUploader:
                        sensors_file: Union[str, Path],
                        measurements_file: Union[str, Path],
                        validate_data: bool = True,
-                       **kwargs) -> Dict[str, Any]:
+                       **kwargs: Any) -> Dict[str, Any]:
         """
         Upload sensor and measurement data from CSV files using OpenAPI client.
 
@@ -274,7 +275,7 @@ class DataUploader:
                                sensors_file: Union[str, Path],
                                measurements_file: Union[str, Path],
                                validate_data: bool = True,
-                               **kwargs) -> Dict[str, Any]:
+                               **kwargs: Any) -> Dict[str, Any]:
         """
         Upload large CSV files in chunks.
 
