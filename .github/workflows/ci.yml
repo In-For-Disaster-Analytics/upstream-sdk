@@ -47,9 +47,9 @@ jobs:
       #   run: |
       #     isort --check-only --diff upstream tests
 
-      # - name: Type checking with mypy
-      #   run: |
-      #     mypy upstream
+      - name: Type checking with mypy
+        run: |
+          mypy upstream
 
       # - name: Security check with bandit
       #   run: |
