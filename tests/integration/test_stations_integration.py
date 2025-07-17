@@ -2,8 +2,7 @@ import os
 from datetime import datetime, timedelta
 
 import pytest
-from upstream_api_client.models import (CampaignsIn, StationCreate,
-                                        StationUpdate)
+from upstream_api_client.models import CampaignsIn, StationCreate, StationUpdate
 
 from upstream.client import UpstreamClient
 from upstream.exceptions import APIError

@@ -9,9 +9,12 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union
 
 from upstream_api_client.api import SensorsApi, UploadfileCsvApi
-from upstream_api_client.models import (GetSensorResponse,
-                                        ListSensorsResponsePagination,
-                                        SensorCreateResponse, SensorUpdate)
+from upstream_api_client.models import (
+    GetSensorResponse,
+    ListSensorsResponsePagination,
+    SensorCreateResponse,
+    SensorUpdate,
+)
 from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager

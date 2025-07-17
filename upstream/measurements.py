@@ -9,10 +9,13 @@ from datetime import datetime
 from typing import Any, List, Optional
 
 from upstream_api_client.api import MeasurementsApi
-from upstream_api_client.models import (AggregatedMeasurement,
-                                        ListMeasurementsResponsePagination,
-                                        MeasurementCreateResponse,
-                                        MeasurementIn, MeasurementUpdate)
+from upstream_api_client.models import (
+    AggregatedMeasurement,
+    ListMeasurementsResponsePagination,
+    MeasurementCreateResponse,
+    MeasurementIn,
+    MeasurementUpdate,
+)
 from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager

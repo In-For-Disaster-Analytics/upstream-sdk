@@ -12,26 +12,24 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from upstream_api_client import MeasurementCreateResponse, MeasurementIn
 from upstream_api_client.models import CampaignsIn, StationCreate
-from upstream_api_client.models.aggregated_measurement import \
-    AggregatedMeasurement
-from upstream_api_client.models.campaign_create_response import \
-    CampaignCreateResponse
-from upstream_api_client.models.get_campaign_response import \
-    GetCampaignResponse
+from upstream_api_client.models.aggregated_measurement import AggregatedMeasurement
+from upstream_api_client.models.campaign_create_response import CampaignCreateResponse
+from upstream_api_client.models.get_campaign_response import GetCampaignResponse
 from upstream_api_client.models.get_station_response import GetStationResponse
-from upstream_api_client.models.list_campaigns_response_pagination import \
-    ListCampaignsResponsePagination
-from upstream_api_client.models.list_measurements_response_pagination import \
-    ListMeasurementsResponsePagination
-from upstream_api_client.models.list_stations_response_pagination import \
-    ListStationsResponsePagination
+from upstream_api_client.models.list_campaigns_response_pagination import (
+    ListCampaignsResponsePagination,
+)
+from upstream_api_client.models.list_measurements_response_pagination import (
+    ListMeasurementsResponsePagination,
+)
+from upstream_api_client.models.list_stations_response_pagination import (
+    ListStationsResponsePagination,
+)
 from upstream_api_client.models.measurement_update import MeasurementUpdate
-from upstream_api_client.models.station_create_response import \
-    StationCreateResponse
+from upstream_api_client.models.station_create_response import StationCreateResponse
 
 from .auth import AuthManager
 from .campaigns import CampaignManager
-from .ckan import CKANIntegration
 from .data import DataUploader
 from .exceptions import ConfigurationError
 from .measurements import MeasurementManager
@@ -44,8 +42,6 @@ logger = get_logger(__name__)
 
 class UpstreamClient:
     """Main client class for interacting with the Upstream API."""
-
-    ckan: Optional[CKANIntegration]
 
     def __init__(
         self,
@@ -90,14 +86,6 @@ class UpstreamClient:
         self.sensors = SensorManager(self.auth_manager)
         self.measurements = MeasurementManager(self.auth_manager)
         self.data = DataUploader(self.auth_manager)
-
-        # Initialize CKAN integration if URL provided
-        if config.ckan_url:
-            self.ckan = CKANIntegration(
-                ckan_url=config.ckan_url, config=config.to_dict()
-            )
-        else:
-            self.ckan = None
 
         logger.info("Upstream client initialized successfully")
 

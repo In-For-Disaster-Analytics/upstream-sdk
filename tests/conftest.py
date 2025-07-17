@@ -9,10 +9,14 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 import pytest
-from upstream_api_client.models import (CampaignsIn, GetCampaignResponse,
-                                        GetStationResponse,
-                                        ListStationsResponsePagination,
-                                        StationCreate, StationCreateResponse)
+from upstream_api_client.models import (
+    CampaignsIn,
+    GetCampaignResponse,
+    GetStationResponse,
+    ListStationsResponsePagination,
+    StationCreate,
+    StationCreateResponse,
+)
 
 from upstream.auth import AuthManager
 from upstream.client import UpstreamClient

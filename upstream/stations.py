@@ -6,10 +6,13 @@ using the generated OpenAPI client.
 """
 
 from upstream_api_client.api import StationsApi
-from upstream_api_client.models import (GetStationResponse,
-                                        ListStationsResponsePagination,
-                                        StationCreate, StationCreateResponse,
-                                        StationUpdate)
+from upstream_api_client.models import (
+    GetStationResponse,
+    ListStationsResponsePagination,
+    StationCreate,
+    StationCreateResponse,
+    StationUpdate,
+)
 from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager
