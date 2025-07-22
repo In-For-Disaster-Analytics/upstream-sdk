@@ -222,6 +222,54 @@ def mock_station(sample_station_data):
     return GetStationResponse(**sample_station_data)
 
 
+@pytest.fixture
+def ckan_test_config():
+    """CKAN configuration for testing."""
+    return {
+        "url": "http://test-ckan.example.com",
+        "api_key": "test-api-key",
+        "timeout": 30,
+        "default_organization": "test-org",
+    }
+
+
+@pytest.fixture
+def mock_ckan_dataset():
+    """Mock CKAN dataset for testing."""
+    return {
+        "id": "test-dataset-id-123",
+        "name": "test-dataset",
+        "title": "Test Dataset",
+        "notes": "Test dataset description",
+        "state": "active",
+        "private": False,
+        "tags": [{"name": "test"}, {"name": "environmental"}, {"name": "upstream"}],
+        "owner_org": "test-org",
+        "resources": [],
+        "extras": [
+            {"key": "source", "value": "Upstream Platform"},
+            {"key": "data_type", "value": "environmental_sensor_data"},
+        ],
+    }
+
+
+@pytest.fixture
+def mock_ckan_resource():
+    """Mock CKAN resource for testing."""
+    return {
+        "id": "test-resource-id-456",
+        "name": "Test Resource",
+        "description": "Test resource description",
+        "url": "https://example.com/data.csv",
+        "format": "CSV",
+        "resource_type": "data",
+        "package_id": "test-dataset-id-123",
+        "size": 1024,
+        "created": "2024-01-01T00:00:00Z",
+        "last_modified": "2024-01-01T00:00:00Z",
+    }
+
+
 @pytest.fixture(autouse=True)
 def reset_mocks():
     """Reset all mocks after each test."""

@@ -5,6 +5,9 @@ This module handles creation, retrieval, and management of monitoring stations
 using the generated OpenAPI client.
 """
 
+import io
+from typing import BinaryIO
+
 from upstream_api_client.api import StationsApi
 from upstream_api_client.models import (
     GetStationResponse,
@@ -280,3 +283,102 @@ class StationManager:
                 raise APIError(f"Failed to delete station: {e}", status_code=e.status)
         except Exception as e:
             raise APIError(f"Failed to delete station: {e}")
+
+    def export_station_sensors(self, station_id: str, campaign_id: str) -> BinaryIO:
+        """
+        Export station sensors as a stream.
+        Args:
+            station_id: Station ID
+            campaign_id: Campaign ID
+
+        Returns:
+            BinaryIO: A binary stream containing the CSV data that can be read like a file
+        """
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
+        try:
+            station_id_int = int(station_id)
+            campaign_id_int = int(campaign_id)
+
+            with self.auth_manager.get_api_client() as api_client:
+                stations_api = StationsApi(api_client)
+
+                response = stations_api.export_sensors_csv_api_v1_campaigns_campaign_id_stations_station_id_sensors_export_get(
+                    campaign_id=campaign_id_int, station_id=station_id_int
+                )
+
+                if isinstance(response, str):
+                    csv_bytes = response.encode('utf-8')
+                elif isinstance(response, bytes):
+                    csv_bytes = response
+                else:
+                    # Handle other response types by converting to string first
+                    csv_bytes = str(response).encode('utf-8')
+
+                return io.BytesIO(csv_bytes)
+
+
+        except ValueError as exc:
+            raise ValidationError(
+                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
+            ) from exc
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Station not found: {station_id}", status_code=404) from e
+            else:
+                raise APIError(f"Failed to export station data: {e}", status_code=e.status) from e
+        except Exception as e:
+            raise APIError(f"Failed to export station data: {e}") from e
+
+    def export_station_measurements(self, station_id: str, campaign_id: str) -> BinaryIO:
+        """
+        Export station data as a stream.
+
+        Args:
+            station_id: Station ID
+            campaign_id: Campaign ID
+
+        Returns:
+            BinaryIO: A binary stream containing the CSV data that can be read like a file
+        """
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
+        try:
+            station_id_int = int(station_id)
+            campaign_id_int = int(campaign_id)
+
+            with self.auth_manager.get_api_client() as api_client:
+                stations_api = StationsApi(api_client)
+
+                response = stations_api.export_measurements_csv_api_v1_campaigns_campaign_id_stations_station_id_measurements_export_get(
+                    campaign_id=campaign_id_int, station_id=station_id_int
+                )
+
+                # Convert response to bytes if it's a string, then create a BytesIO stream
+                if isinstance(response, str):
+                    csv_bytes = response.encode('utf-8')
+                elif isinstance(response, bytes):
+                    csv_bytes = response
+                else:
+                    # Handle other response types by converting to string first
+                    csv_bytes = str(response).encode('utf-8')
+
+                return io.BytesIO(csv_bytes)
+
+        except ValueError as exc:
+            raise ValidationError(
+                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
+            ) from exc
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Station not found: {station_id}", status_code=404) from e
+            else:
+                raise APIError(f"Failed to export station data: {e}", status_code=e.status) from e
+        except Exception as e:
+            raise APIError(f"Failed to export station data: {e}") from e

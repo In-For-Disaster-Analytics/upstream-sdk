@@ -27,6 +27,7 @@ class ConfigManager:
         password: Optional[str] = None,
         base_url: Optional[str] = None,
         ckan_url: Optional[str] = None,
+        ckan_organization: Optional[str] = None,
         timeout: int = 30,
         max_retries: int = 3,
         chunk_size: int = 10000,
@@ -41,6 +42,7 @@ class ConfigManager:
             password: Upstream password
             base_url: Base URL for Upstream API
             ckan_url: CKAN portal URL
+            ckan_organization: CKAN organization name
             timeout: Request timeout in seconds
             max_retries: Maximum retry attempts
             chunk_size: Number of records per chunk
@@ -56,6 +58,7 @@ class ConfigManager:
         self.ckan_url = ckan_url or os.getenv(
             "CKAN_URL", "https://ckan.tacc.utexas.edu"
         )
+        self.ckan_organization = ckan_organization or os.getenv("CKAN_ORGANIZATION")
 
         # Configuration options
         self.timeout = timeout
@@ -128,8 +131,9 @@ class ConfigManager:
             if "ckan" in config_data:
                 ckan_config = config_data["ckan"]
                 flattened_config["ckan_url"] = ckan_config.get("url")
+                flattened_config["ckan_organization"] = ckan_config.get("organization")
                 flattened_config.update(
-                    {k: v for k, v in ckan_config.items() if k != "url"}
+                    {k: v for k, v in ckan_config.items() if k not in ["url", "organization"]}
                 )
 
             if "upload" in config_data:
@@ -163,6 +167,7 @@ class ConfigManager:
             "password": self.password,
             "base_url": self.base_url,
             "ckan_url": self.ckan_url,
+            "ckan_organization": self.ckan_organization,
             "timeout": self.timeout,
             "max_retries": self.max_retries,
             "chunk_size": self.chunk_size,
@@ -188,6 +193,7 @@ class ConfigManager:
             },
             "ckan": {
                 "url": self.ckan_url,
+                "organization": self.ckan_organization,
             },
             "upload": {
                 "chunk_size": self.chunk_size,

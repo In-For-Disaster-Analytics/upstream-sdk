@@ -28,6 +28,8 @@ from upstream_api_client.models.list_stations_response_pagination import (
 from upstream_api_client.models.measurement_update import MeasurementUpdate
 from upstream_api_client.models.station_create_response import StationCreateResponse
 
+from upstream.ckan import CKANIntegration
+
 from .auth import AuthManager
 from .campaigns import CampaignManager
 from .data import DataUploader
@@ -43,12 +45,17 @@ logger = get_logger(__name__)
 class UpstreamClient:
     """Main client class for interacting with the Upstream API."""
 
+    ckan: Optional[CKANIntegration]
+
+
+
     def __init__(
         self,
         username: Optional[str] = None,
         password: Optional[str] = None,
         base_url: Optional[str] = None,
         ckan_url: Optional[str] = None,
+        ckan_organization: Optional[str] = None,
         config_file: Optional[Union[str, Path]] = None,
         **kwargs: Any,
     ) -> None:
@@ -59,6 +66,7 @@ class UpstreamClient:
             password: Password for authentication
             base_url: Base URL for the Upstream API
             ckan_url: URL for CKAN integration
+            ckan_organization: CKAN organization name
             config_file: Path to configuration file
             **kwargs: Additional configuration options
 
@@ -74,9 +82,9 @@ class UpstreamClient:
                 password=password,
                 base_url=base_url,
                 ckan_url=ckan_url,
+                ckan_organization=ckan_organization,
                 **kwargs,
             )
-
         # Initialize authentication manager
         self.auth_manager = AuthManager(config)
 
@@ -86,6 +94,14 @@ class UpstreamClient:
         self.sensors = SensorManager(self.auth_manager)
         self.measurements = MeasurementManager(self.auth_manager)
         self.data = DataUploader(self.auth_manager)
+
+        # Initialize CKAN integration if URL provided
+        if config.ckan_url:
+            self.ckan = CKANIntegration(
+                ckan_url=config.ckan_url, config=config.to_dict()
+            )
+        else:
+            self.ckan = None
 
         logger.info("Upstream client initialized successfully")
 
@@ -110,6 +126,7 @@ class UpstreamClient:
         - UPSTREAM_PASSWORD: Password for authentication
         - UPSTREAM_BASE_URL: Base URL for the Upstream API
         - CKAN_URL: URL for CKAN integration
+        - CKAN_ORGANIZATION: CKAN organization name
 
         Returns:
             Configured UpstreamClient instance
@@ -119,6 +136,7 @@ class UpstreamClient:
             password=os.environ.get("UPSTREAM_PASSWORD"),
             base_url=os.environ.get("UPSTREAM_BASE_URL"),
             ckan_url=os.environ.get("CKAN_URL"),
+            ckan_organization=os.environ.get("CKAN_ORGANIZATION"),
         )
 
     def authenticate(self) -> bool:
@@ -433,23 +451,94 @@ class UpstreamClient:
         """
         return self.data.get_file_info(file_path)
 
-    # def publish_to_ckan(self, campaign_id: str, **kwargs: Any) -> Dict[str, Any]:
-    #     """Publish campaign data to CKAN.
+    def publish_to_ckan(
+        self, 
+        campaign_id: str, 
+        station_id: str,
+        dataset_metadata: Optional[Dict[str, Any]] = None,
+        resource_metadata: Optional[Dict[str, Any]] = None,
+        custom_tags: Optional[List[str]] = None,
+        auto_publish: bool = True,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
+        """Publish campaign data to CKAN with custom metadata support.
 
-    #     Args:
-    #         campaign_id: Campaign ID
-    #         **kwargs: Additional CKAN parameters
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            dataset_metadata: Custom metadata for the CKAN dataset (added to extras)
+            resource_metadata: Custom metadata for CKAN resources (sensors and measurements)
+            custom_tags: Additional tags for the dataset (beyond default environmental, sensors, upstream)
+            auto_publish: Whether to automatically publish the dataset (default: True)
+            **kwargs: Additional CKAN parameters
 
-    #     Returns:
-    #         CKAN publication result
+        Returns:
+            CKAN publication result
 
-    #     Raises:
-    #         ConfigurationError: If CKAN integration not configured
-    #     """
-    #     if not self.ckan:
-    #         raise ConfigurationError("CKAN integration not configured")
+        Raises:
+            ConfigurationError: If CKAN integration not configured
 
-    #     return self.ckan.publish_campaign(campaign_id=campaign_id, **kwargs)
+        Examples:
+            Basic usage:
+            >>> client.publish_to_ckan("campaign123", "station456")
+
+            With custom dataset metadata:
+            >>> client.publish_to_ckan(
+            ...     "campaign123", 
+            ...     "station456",
+            ...     dataset_metadata={
+            ...         "project_name": "Water Quality Study",
+            ...         "funding_agency": "EPA",
+            ...         "study_period": "2024-2025"
+            ...     }
+            ... )
+
+            With custom tags and resource metadata:
+            >>> client.publish_to_ckan(
+            ...     "campaign123", 
+            ...     "station456",
+            ...     custom_tags=["water-quality", "research", "epa-funded"],
+            ...     resource_metadata={
+            ...         "quality_level": "Level 2",
+            ...         "processing_version": "v2.1"
+            ...     }
+            ... )
+
+            Complete customization:
+            >>> client.publish_to_ckan(
+            ...     "campaign123", 
+            ...     "station456",
+            ...     dataset_metadata={
+            ...         "project_pi": "Dr. Jane Smith",
+            ...         "institution": "University XYZ",
+            ...         "grant_number": "EPA-2024-001"
+            ...     },
+            ...     resource_metadata={
+            ...         "calibration_date": "2024-01-15",
+            ...         "data_quality": "QC Passed"
+            ...     },
+            ...     custom_tags=["university-research", "calibrated-data"],
+            ...     auto_publish=False
+            ... )
+        """
+        if not self.ckan:
+            raise ConfigurationError("CKAN integration not configured")
+        station_data = self.stations.get(station_id=station_id, campaign_id=campaign_id)
+        station_measurements = self.stations.export_station_measurements(station_id=station_id, campaign_id=campaign_id)
+        station_sensors = self.stations.export_station_sensors(station_id=station_id, campaign_id=campaign_id)
+        campaign_data = self.campaigns.get(campaign_id=campaign_id)
+        return self.ckan.publish_campaign(
+            campaign_id=campaign_id, 
+            campaign_data=campaign_data, 
+            station_measurements=station_measurements, 
+            station_sensors=station_sensors, 
+            station_data=station_data,
+            dataset_metadata=dataset_metadata,
+            resource_metadata=resource_metadata,
+            custom_tags=custom_tags,
+            auto_publish=auto_publish,
+            **kwargs
+        )
 
     def logout(self) -> None:
         """Logout and invalidate authentication."""
