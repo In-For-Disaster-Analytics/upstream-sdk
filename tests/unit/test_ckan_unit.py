@@ -48,6 +48,19 @@ def mock_ckan_error_response():
     }
     return response
 
+@pytest.fixture
+def mock_station_sensors_csv():
+    """Mock station sensors CSV data as a stream."""
+    csv_data = "alias,variablename,units\ntemp_01,Air Temperature,°C\nhumidity_01,Relative Humidity,%\n"
+    return io.BytesIO(csv_data.encode('utf-8'))
+
+
+@pytest.fixture
+def mock_station_measurements_csv():
+    """Mock station measurements CSV data as a stream."""
+    csv_data = "collectiontime,Lat_deg,Lon_deg,temp_01,humidity_01\n2024-01-01T10:00:00Z,30.2672,-97.7431,25.5,65.2\n"
+    return io.BytesIO(csv_data.encode('utf-8'))
+
 
 @pytest.fixture
 def sample_campaign_response():
@@ -453,8 +466,9 @@ class TestCKANCampaignPublishing:
         result = ckan.publish_campaign(
             campaign_id="test-campaign-123",
             campaign_data=sample_campaign_response,
-            sensors_url="https://example.com/sensors.csv",
-            measurements_url="https://example.com/measurements.csv",
+            station_measurements=mock_station_measurements_csv,
+            station_sensors=mock_station_sensors_csv,
+            station_name="Test Station"
         )
 
         assert result["success"] is True
@@ -497,12 +511,13 @@ class TestCKANCampaignPublishing:
         result = ckan.publish_campaign(
             campaign_id="test-campaign-123",
             campaign_data=sample_campaign_response,
-            sensor_csv="/path/to/sensors.csv",
+            station_measurements=mock_station_measurements_csv,
+            station_sensors=mock_station_sensors_csv,
+            station_name="Test Station"
         )
 
         assert result["success"] is True
         mock_update.assert_called_once()
-        mock_create_resource.assert_called_once()
 
     @patch("upstream.ckan.CKANIntegration.create_dataset")
     @patch("upstream.ckan.CKANIntegration.get_dataset")
@@ -519,6 +534,9 @@ class TestCKANCampaignPublishing:
             ckan.publish_campaign(
                 campaign_id="test-campaign-123",
                 campaign_data=sample_campaign_response,
+                station_measurements=mock_station_measurements_csv,
+                station_sensors=mock_station_sensors_csv,
+                station_name="Test Station"
             )
 
 

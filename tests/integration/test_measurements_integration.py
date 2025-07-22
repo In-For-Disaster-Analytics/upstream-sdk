@@ -22,7 +22,7 @@ PASSWORD = os.environ.get("UPSTREAM_PASSWORD")
 
 
 @pytest.fixture
-def client():
+def upstream_client():
     """Create authenticated client for testing."""
     username = os.environ.get("UPSTREAM_USERNAME")
     password = os.environ.get("UPSTREAM_PASSWORD")
@@ -32,16 +32,16 @@ def client():
             "UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables required"
         )
 
-    client = UpstreamClient(
+    upstream_client = UpstreamClient(
         username=username, password=password, base_url=BASE_URL, ckan_url=CKAN_URL
     )
 
     # Ensure authentication
-    assert client.authenticate(), "Authentication failed"
-    return client
+    assert upstream_client.authenticate(), "Authentication failed"
+    return upstream_client
 
 
-def test_measurement_lifecycle(client):
+def test_measurement_lifecycle(upstream_client):
     """Test complete measurement lifecycle: create, list, update, delete."""
     # Create a campaign first
     from upstream_api_client.models import CampaignsIn
@@ -56,7 +56,7 @@ def test_measurement_lifecycle(client):
         end_date=datetime.now() + timedelta(days=30),
     )
 
-    campaign = client.create_campaign(campaign_data)
+    campaign = upstream_client.create_campaign(campaign_data)
     campaign_id = str(campaign.id)
 
     try:
@@ -72,7 +72,7 @@ def test_measurement_lifecycle(client):
             active=True,
         )
 
-        station = client.create_station(campaign_id, station_data)
+        station = upstream_client.create_station(campaign_id, station_data)
         station_id = str(station.id)
 
         try:
@@ -102,7 +102,7 @@ def test_measurement_lifecycle(client):
 
             try:
                 # Upload sensor
-                result = client.upload_sensor_measurement_files(
+                result = upstream_client.upload_sensor_measurement_files(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=sensors_file_path,
@@ -110,7 +110,7 @@ def test_measurement_lifecycle(client):
                 )
 
                 # Get the sensor ID
-                sensors = client.sensors.list(
+                sensors = upstream_client.sensors.list(
                     campaign_id=campaign_id, station_id=station_id
                 )
                 assert len(sensors.items) > 0
@@ -127,7 +127,7 @@ def test_measurement_lifecycle(client):
                     geometry="POINT(-97.7431 30.2672)",
                 )
 
-                created_measurement = client.measurements.create(
+                created_measurement = upstream_client.measurements.create(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensor_id=sensor_id,
@@ -138,7 +138,7 @@ def test_measurement_lifecycle(client):
                 print(f"Created measurement: {created_measurement.id}")
 
                 # Test list measurements
-                measurements = client.list_measurements(
+                measurements = upstream_client.list_measurements(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensor_id=sensor_id,
@@ -150,7 +150,7 @@ def test_measurement_lifecycle(client):
 
                 # Test get measurements with confidence intervals
                 confidence_measurements = (
-                    client.get_measurements_with_confidence_intervals(
+                    upstream_client.get_measurements_with_confidence_intervals(
                         campaign_id=campaign_id,
                         station_id=station_id,
                         sensor_id=sensor_id,
@@ -170,7 +170,7 @@ def test_measurement_lifecycle(client):
                         measurementvalue=26.0, description="Updated test measurement"
                     )
 
-                    client.update_measurement(
+                    upstream_client.update_measurement(
                         campaign_id=campaign_id,
                         station_id=station_id,
                         sensor_id=sensor_id,
@@ -178,7 +178,7 @@ def test_measurement_lifecycle(client):
                         measurement_update=update_data,
                     )
 
-                    updated_measurement = client.measurements.list(
+                    updated_measurement = upstream_client.measurements.list(
                         campaign_id=campaign_id,
                         station_id=station_id,
                         sensor_id=sensor_id,
@@ -201,7 +201,7 @@ def test_measurement_lifecycle(client):
                     # print(f"Updated measurement: {updated_measurement.id}")
 
                 # Test delete measurements
-                result = client.delete_measurements(
+                result = upstream_client.delete_measurements(
                     campaign_id=campaign_id, station_id=station_id, sensor_id=sensor_id
                 )
 
@@ -209,7 +209,7 @@ def test_measurement_lifecycle(client):
                 print(f"Deleted measurements for sensor: {sensor_id}")
 
                 # Verify deletion
-                measurements_after_delete = client.list_measurements(
+                measurements_after_delete = upstream_client.list_measurements(
                     campaign_id=campaign_id, station_id=station_id, sensor_id=sensor_id
                 )
 
@@ -234,7 +234,7 @@ def test_measurement_lifecycle(client):
         pass
 
 
-def test_measurement_filtering(client):
+def test_measurement_filtering(upstream_client):
     """Test measurement filtering and querying capabilities."""
     # Create a campaign first
     from upstream_api_client.models import CampaignsIn
@@ -249,7 +249,7 @@ def test_measurement_filtering(client):
         end_date=datetime.now() + timedelta(days=30),
     )
 
-    campaign = client.create_campaign(campaign_data)
+    campaign = upstream_client.create_campaign(campaign_data)
     campaign_id = str(campaign.id)
 
     try:
@@ -265,7 +265,7 @@ def test_measurement_filtering(client):
             active=True,
         )
 
-        station = client.create_station(campaign_id, station_data)
+        station = upstream_client.create_station(campaign_id, station_data)
         station_id = str(station.id)
 
         try:
@@ -296,7 +296,7 @@ def test_measurement_filtering(client):
 
             try:
                 # Upload sensor and measurements
-                result = client.upload_sensor_measurement_files(
+                result = upstream_client.upload_sensor_measurement_files(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensors_file=sensors_file_path,
@@ -304,7 +304,7 @@ def test_measurement_filtering(client):
                 )
 
                 # Get the sensor ID
-                sensors = client.sensors.list(
+                sensors = upstream_client.sensors.list(
                     campaign_id=campaign_id, station_id=station_id
                 )
                 assert len(sensors.items) > 0
@@ -315,7 +315,7 @@ def test_measurement_filtering(client):
                 start_date = datetime(2024, 1, 15, 10, 0, 0)
                 end_date = datetime(2024, 1, 15, 12, 0, 0)
 
-                filtered_measurements = client.list_measurements(
+                filtered_measurements = upstream_client.list_measurements(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensor_id=sensor_id,
@@ -326,7 +326,7 @@ def test_measurement_filtering(client):
                 print(f"Found {filtered_measurements.total} measurements in date range")
 
                 # Test filtering by value range
-                value_filtered_measurements = client.list_measurements(
+                value_filtered_measurements = upstream_client.list_measurements(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensor_id=sensor_id,
@@ -339,7 +339,7 @@ def test_measurement_filtering(client):
                 )
 
                 # Test pagination
-                paginated_measurements = client.list_measurements(
+                paginated_measurements = upstream_client.list_measurements(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensor_id=sensor_id,
@@ -352,7 +352,7 @@ def test_measurement_filtering(client):
                 )
 
                 # Test confidence intervals with different intervals
-                hourly_intervals = client.get_measurements_with_confidence_intervals(
+                hourly_intervals = upstream_client.get_measurements_with_confidence_intervals(
                     campaign_id=campaign_id,
                     station_id=station_id,
                     sensor_id=sensor_id,

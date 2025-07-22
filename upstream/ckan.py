@@ -2,6 +2,7 @@
 CKAN integration for Upstream SDK.
 """
 
+from datetime import datetime
 import logging
 import os
 from pathlib import Path
@@ -28,7 +29,6 @@ class CKANIntegration:
             ckan_url: CKAN portal URL
             config: Additional CKAN configuration
         """
-        print(config)
         self.ckan_url = ckan_url.rstrip("/")
         self.config = config or {}
         self.session = requests.Session()
@@ -90,6 +90,7 @@ class CKANIntegration:
         dataset_data = {k: v for k, v in dataset_data.items() if v is not None}
 
         try:
+            print('Response', self.session.headers)
             response = self.session.post(
                 f"{self.ckan_url}/api/3/action/package_create", json=dataset_data
             )
@@ -367,8 +368,10 @@ class CKANIntegration:
         self,
         campaign_id: str,
         campaign_data: GetCampaignResponse,
+        station_measurements: BinaryIO,
+        station_sensors: BinaryIO,
+        station_name: str,
         auto_publish: bool = True,
-        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Publish campaign data to CKAN.
@@ -376,12 +379,9 @@ class CKANIntegration:
         Args:
             campaign_id: Campaign ID
             campaign_data: Campaign information
+            station_measurements: BinaryIO stream of station measurements CSV
+            station_sensors: BinaryIO stream of station sensors CSV
             auto_publish: Whether to automatically publish the dataset
-            **kwargs: Additional CKAN parameters. Supported keys:
-                - sensor_csv: Path to sensor CSV file to upload
-                - measurement_csv: Path to measurement CSV file to upload
-                - sensors_url: URL to sensor data (alternative to sensor_csv)
-                - measurements_url: URL to measurement data (alternative to measurement_csv)
 
         Returns:
             CKAN publication result
@@ -406,7 +406,6 @@ class CKANIntegration:
                 {"key": "source", "value": "Upstream Platform"},
                 {"key": "data_type", "value": "environmental_sensor_data"},
             ],
-            **kwargs,
         }
 
         try:
@@ -427,44 +426,25 @@ class CKANIntegration:
             resources_created = []
 
             # Add sensors resource (file upload or URL)
-            if "sensor_csv" in kwargs:
-                sensors_resource = self.create_resource(
-                    dataset_id=dataset["id"],
-                    name="Sensors Configuration",
-                    file_path=kwargs["sensor_csv"],
-                    format="CSV",
-                    description="Sensor configuration and metadata",
-                )
-                resources_created.append(sensors_resource)
-            elif "sensors_url" in kwargs:
-                sensors_resource = self.create_resource(
-                    dataset_id=dataset["id"],
-                    name="Sensors Configuration",
-                    url=kwargs["sensors_url"],
-                    format="CSV",
-                    description="Sensor configuration and metadata",
-                )
-                resources_created.append(sensors_resource)
+            published_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            sensors_resource = self.create_resource(
+                dataset_id=dataset["id"],
+                name=f"{station_name} - Sensors Configuration",
+                file_obj=station_sensors,
+                format="CSV",
+                description="Sensor configuration and metadata",
+            )
+            resources_created.append(sensors_resource)
 
             # Add measurements resource (file upload or URL)
-            if "measurement_csv" in kwargs:
-                measurements_resource = self.create_resource(
+            measurements_resource = self.create_resource(
                     dataset_id=dataset["id"],
-                    name="Measurement Data",
-                    file_path=kwargs["measurement_csv"],
+                    name=f"{station_name} - Measurement Data",
+                    file_obj=station_measurements,
                     format="CSV",
                     description="Environmental sensor measurements",
                 )
-                resources_created.append(measurements_resource)
-            elif "measurements_url" in kwargs:
-                measurements_resource = self.create_resource(
-                    dataset_id=dataset["id"],
-                    name="Measurement Data",
-                    url=kwargs["measurements_url"],
-                    format="CSV",
-                    description="Environmental sensor measurements",
-                )
-                resources_created.append(measurements_resource)
+            resources_created.append(measurements_resource)
 
             # Publish dataset if requested
             if auto_publish and not dataset.get("private", True):

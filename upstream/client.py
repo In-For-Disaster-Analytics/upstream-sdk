@@ -85,7 +85,6 @@ class UpstreamClient:
                 ckan_organization=ckan_organization,
                 **kwargs,
             )
-
         # Initialize authentication manager
         self.auth_manager = AuthManager(config)
 
@@ -452,11 +451,12 @@ class UpstreamClient:
         """
         return self.data.get_file_info(file_path)
 
-    def publish_to_ckan(self, campaign_id: str, **kwargs: Any) -> Dict[str, Any]:
+    def publish_to_ckan(self, campaign_id: str, station_id: str) -> Dict[str, Any]:
         """Publish campaign data to CKAN.
 
         Args:
             campaign_id: Campaign ID
+            station_id: Station ID
             **kwargs: Additional CKAN parameters
 
         Returns:
@@ -468,7 +468,11 @@ class UpstreamClient:
         if not self.ckan:
             raise ConfigurationError("CKAN integration not configured")
 
-        return self.ckan.publish_campaign(campaign_id=campaign_id, **kwargs)
+        station_measurements = self.stations.export_station_measurements(station_id=station_id, campaign_id=campaign_id)
+        station_sensors = self.stations.export_station_sensors(station_id=station_id, campaign_id=campaign_id)
+        campaign_data = self.campaigns.get(campaign_id=campaign_id)
+        station_name = self.stations.get(station_id=station_id, campaign_id=campaign_id).name
+        return self.ckan.publish_campaign(campaign_id=campaign_id, campaign_data=campaign_data, station_measurements=station_measurements, station_sensors=station_sensors, station_name=station_name)
 
     def logout(self) -> None:
         """Logout and invalidate authentication."""
