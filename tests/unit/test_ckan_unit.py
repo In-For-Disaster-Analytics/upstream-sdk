@@ -108,7 +108,7 @@ class TestCKANIntegrationInit:
         ckan = CKANIntegration("http://test.example.com")
         assert ckan.ckan_url == "http://test.example.com"
         assert ckan.config == {}
-        assert ckan.session.timeout == 30
+        assert ckan.timeout == 30
 
     def test_init_with_trailing_slash(self):
         """Test initialization with trailing slash removal."""
@@ -121,7 +121,7 @@ class TestCKANIntegrationInit:
         ckan = CKANIntegration("http://test.example.com", config=config)
 
         assert ckan.config == config
-        assert ckan.session.timeout == 60
+        assert ckan.timeout == 60
         assert "Authorization" in ckan.session.headers
         assert ckan.session.headers["Authorization"] == "test-key"
 
@@ -131,7 +131,7 @@ class TestCKANIntegrationInit:
         ckan = CKANIntegration("http://test.example.com", config=config)
 
         assert "Authorization" in ckan.session.headers
-        assert ckan.session.headers["Authorization"] == "test-token"
+        assert ckan.session.headers["Authorization"] == "Bearer test-token"
 
 
 class TestCKANDatasetOperations:

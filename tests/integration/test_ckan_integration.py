@@ -487,7 +487,7 @@ class TestCKANUnitTests:
         client = CKANIntegration("http://test.example.com", config=config)
 
         assert client.config == config
-        assert client.session.timeout == 60
+        assert client.timeout == 60
         assert "Authorization" in client.session.headers
 
     def test_sanitize_title_edge_cases(self):

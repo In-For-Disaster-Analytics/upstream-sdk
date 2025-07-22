@@ -7,7 +7,7 @@ import json
 import logging
 import os
 from pathlib import Path
-from typing import Any, BinaryIO, Dict, List, Optional, Union
+from typing import Any, BinaryIO, Dict, List, Optional, Union, cast
 
 import requests
 from upstream_api_client import GetStationResponse
@@ -60,6 +60,9 @@ class CKANIntegration:
         self.ckan_url = ckan_url.rstrip("/")
         self.config = config or {}
         self.session = requests.Session()
+
+        # Store timeout for use in individual requests
+        self.timeout = self.config.get("timeout", 30)
 
         # Set up authentication if provided
         api_key = self.config.get("api_key")
@@ -118,7 +121,7 @@ class CKANIntegration:
 
         try:
             response = self.session.post(
-                f"{self.ckan_url}/api/3/action/package_create", json=dataset_data
+                f"{self.ckan_url}/api/3/action/package_create", json=dataset_data, timeout=self.timeout
             )
             response.raise_for_status()
 
@@ -132,7 +135,7 @@ class CKANIntegration:
                 f"Created CKAN dataset: {dataset['name']} (ID: {dataset['id']})"
             )
 
-            return dataset
+            return cast(Dict[str, Any], dataset)
 
         except requests.exceptions.RequestException as e:
             raise APIError(f"Failed to create CKAN dataset: {e}")
@@ -149,7 +152,7 @@ class CKANIntegration:
         """
         try:
             response = self.session.get(
-                f"{self.ckan_url}/api/3/action/package_show", params={"id": dataset_id}
+                f"{self.ckan_url}/api/3/action/package_show", params={"id": dataset_id}, timeout=self.timeout
             )
             response.raise_for_status()
 
@@ -158,10 +161,10 @@ class CKANIntegration:
             if not result.get("success"):
                 raise APIError(f"CKAN dataset retrieval failed: {result.get('error')}")
 
-            return result["result"]
+            return cast(Dict[str, Any], result["result"])
 
         except requests.exceptions.RequestException as e:
-            if hasattr(e, "response") and e.response.status_code == 404:
+            if hasattr(e, "response") and e.response is not None and e.response.status_code == 404:
                 raise APIError(f"CKAN dataset not found: {dataset_id}")
             raise APIError(f"Failed to get CKAN dataset: {e}")
 
@@ -265,7 +268,7 @@ class CKANIntegration:
 
         try:
             response = self.session.post(
-                f"{self.ckan_url}/api/3/action/package_update", json=updated_data
+                f"{self.ckan_url}/api/3/action/package_update", json=updated_data, timeout=self.timeout
             )
             response.raise_for_status()
 
@@ -278,7 +281,7 @@ class CKANIntegration:
             dataset = result["result"]
             logger.info(f"Updated CKAN dataset: {dataset['name']}")
 
-            return dataset
+            return cast(Dict[str, Any], dataset)
 
         except requests.exceptions.RequestException as e:
             # Log the response content for debugging
@@ -303,7 +306,7 @@ class CKANIntegration:
         """
         try:
             response = self.session.post(
-                f"{self.ckan_url}/api/3/action/package_delete", json={"id": dataset_id}
+                f"{self.ckan_url}/api/3/action/package_delete", json={"id": dataset_id}, timeout=self.timeout
             )
             response.raise_for_status()
 
@@ -366,7 +369,7 @@ class CKANIntegration:
         # Handle file upload vs URL
         if file_path or file_obj:
             # File upload
-            files = {}
+            files: Dict[str, Any] = {}
             if file_path:
                 file_path = Path(file_path)
                 if not file_path.exists():
@@ -376,13 +379,14 @@ class CKANIntegration:
                 filename = getattr(file_obj, "name", "uploaded_file")
                 if hasattr(filename, "split"):
                     filename = os.path.basename(filename)
-                files["upload"] = (filename, file_obj)
+                files["upload"] = (str(filename), file_obj)
 
             try:
                 response = self.session.post(
                     f"{self.ckan_url}/api/3/action/resource_create",
                     data=resource_data,
                     files=files,
+                    timeout=self.timeout
                 )
                 response.raise_for_status()
             finally:
@@ -395,7 +399,7 @@ class CKANIntegration:
                 raise APIError("Either url, file_path, or file_obj must be provided")
             resource_data["url"] = url
             response = self.session.post(
-                f"{self.ckan_url}/api/3/action/resource_create", json=resource_data
+                f"{self.ckan_url}/api/3/action/resource_create", json=resource_data, timeout=self.timeout
             )
             response.raise_for_status()
 
@@ -410,7 +414,7 @@ class CKANIntegration:
                 f"Created CKAN resource: {resource['name']} (ID: {resource['id']})"
             )
 
-            return resource
+            return cast(Dict[str, Any], resource)
 
         except requests.exceptions.RequestException as e:
             raise APIError(f"Failed to create CKAN resource: {e}")
@@ -434,7 +438,7 @@ class CKANIntegration:
         Returns:
             List of dataset information
         """
-        params = {"rows": limit, "start": offset}
+        params: Dict[str, Union[int, str]] = {"rows": limit, "start": offset}
 
         # Build query
         query_parts = []
@@ -451,7 +455,7 @@ class CKANIntegration:
 
         try:
             response = self.session.get(
-                f"{self.ckan_url}/api/3/action/package_search", params=params
+                f"{self.ckan_url}/api/3/action/package_search", params=params, timeout=self.timeout
             )
             response.raise_for_status()
 
@@ -460,7 +464,7 @@ class CKANIntegration:
             if not result.get("success"):
                 raise APIError(f"CKAN dataset search failed: {result.get('error')}")
 
-            return result["result"]["results"]
+            return cast(List[Dict[str, Any]], result["result"]["results"])
 
         except requests.exceptions.RequestException as e:
             raise APIError(f"Failed to list CKAN datasets: {e}")
@@ -571,12 +575,12 @@ class CKANIntegration:
                 {"key": "station_contact_email", "value": station_data.contact_email or ""},
                 {"key": "station_active", "value": str(station_data.active)},
                 {"key": "station_geometry", "value": _serialize_for_json(station_data.geometry)},
-                {"key": "station_sensors", "value": _serialize_for_json([sensor.to_dict() for sensor in station_data.sensors])},
-                {"key": "station_sensors_count", "value": str(len(station_data.sensors))},
-                {"key": "station_sensors_aliases", "value": _serialize_for_json([sensor.alias for sensor in station_data.sensors])},
-                {"key": "station_sensors_units", "value": _serialize_for_json([sensor.units for sensor in station_data.sensors])},
-                {"key": "station_sensors_descriptions", "value": _serialize_for_json([sensor.description for sensor in station_data.sensors])},
-                {"key": "station_sensors_variablename", "value": _serialize_for_json([sensor.variablename for sensor in station_data.sensors])},
+                {"key": "station_sensors", "value": _serialize_for_json([sensor.to_dict() for sensor in station_data.sensors] if station_data.sensors else [])},
+                {"key": "station_sensors_count", "value": str(len(station_data.sensors) if station_data.sensors else 0)},
+                {"key": "station_sensors_aliases", "value": _serialize_for_json([sensor.alias for sensor in station_data.sensors] if station_data.sensors else [])},
+                {"key": "station_sensors_units", "value": _serialize_for_json([sensor.units for sensor in station_data.sensors] if station_data.sensors else [])},
+                {"key": "station_sensors_descriptions", "value": _serialize_for_json([sensor.description for sensor in station_data.sensors] if station_data.sensors else [])},
+                {"key": "station_sensors_variablename", "value": _serialize_for_json([sensor.variablename for sensor in station_data.sensors] if station_data.sensors else [])},
             ]
 
             # Add custom resource metadata
@@ -636,7 +640,7 @@ class CKANIntegration:
         """
         try:
             response = self.session.get(
-                f"{self.ckan_url}/api/3/action/organization_show", params={"id": org_id}
+                f"{self.ckan_url}/api/3/action/organization_show", params={"id": org_id}, timeout=self.timeout
             )
             response.raise_for_status()
 
@@ -647,7 +651,7 @@ class CKANIntegration:
                     f"CKAN organization retrieval failed: {result.get('error')}"
                 )
 
-            return result["result"]
+            return cast(Dict[str, Any], result["result"])
 
         except requests.exceptions.RequestException as e:
             raise APIError(f"Failed to get CKAN organization: {e}")
@@ -663,6 +667,7 @@ class CKANIntegration:
             response = self.session.get(
                 f"{self.ckan_url}/api/3/action/organization_list",
                 params={"all_fields": True},
+                timeout=self.timeout
             )
             response.raise_for_status()
 
@@ -673,7 +678,7 @@ class CKANIntegration:
                     f"CKAN organization listing failed: {result.get('error')}"
                 )
 
-            return result["result"]
+            return cast(List[Dict[str, Any]], result["result"])
 
         except requests.exceptions.RequestException as e:
             raise APIError(f"Failed to list CKAN organizations: {e}")

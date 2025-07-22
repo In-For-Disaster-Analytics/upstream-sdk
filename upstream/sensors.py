@@ -6,7 +6,7 @@ using the generated OpenAPI client.
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 from upstream_api_client.api import SensorsApi, UploadfileCsvApi
 from upstream_api_client.models import (
@@ -273,7 +273,7 @@ class SensorManager:
         sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
         measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
         chunk_size: int = 1000,
-    ) -> Dict[str, object]:
+    ) -> Dict[str, Any]:
         """
         Upload sensor and measurement CSV files to process and store data in the database.
         Measurements are uploaded in chunks to avoid HTTP timeouts with large files.
@@ -362,7 +362,7 @@ class SensorManager:
                 logger.info(
                     f"Successfully uploaded {len(measurements_chunks)} measurement chunks for campaign {campaign_id}, station {station_id}"
                 )
-                return all_responses[-1] if all_responses else {}
+                return cast(Dict[str, Any], all_responses[-1]) if all_responses else {}
 
         except ValueError as exc:
             raise ValidationError(
