@@ -282,9 +282,14 @@ class CKANIntegration:
             "resource_type": resource_type,
             "format": format,
             "description": description,
-            "extras": metadata,
             **kwargs,
         }
+        
+        # Add metadata fields directly to resource (not in extras array)
+        if metadata:
+            for meta_item in metadata:
+                if isinstance(meta_item, dict) and "key" in meta_item and "value" in meta_item:
+                    resource_data[meta_item["key"]] = meta_item["value"]
 
         # Handle file upload vs URL
         if file_path or file_obj:

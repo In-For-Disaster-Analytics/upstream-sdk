@@ -319,6 +319,49 @@ class TestCKANCampaignPublishing:
             assert len(resources) == 2
             assert any("Test Station - Sensors Configuration" in name for name in resource_names)
             assert any("Test Station - Measurement Data" in name for name in resource_names)
+            
+            # Verify resource metadata
+            for resource in resources:
+                assert resource["format"] == "CSV"
+                if "Sensors Configuration" in resource["name"]:
+                    assert resource["description"] == "Sensor configuration and metadata"
+                elif "Measurement Data" in resource["name"]:
+                    assert resource["description"] == "Environmental sensor measurements"
+            
+            # Verify campaign metadata is stored in dataset extras
+            dataset_extras = {extra["key"]: extra["value"] for extra in dataset.get("extras", [])}
+            assert "campaign_id" in dataset_extras
+            assert dataset_extras["campaign_id"] == str(campaign_id)
+            assert "campaign_name" in dataset_extras
+            assert dataset_extras["campaign_name"] == sample_campaign_response.name
+            assert "campaign_contact_name" in dataset_extras
+            assert dataset_extras["campaign_contact_name"] == sample_campaign_response.contact_name
+            assert "campaign_contact_email" in dataset_extras
+            assert dataset_extras["campaign_contact_email"] == sample_campaign_response.contact_email
+            assert "campaign_allocation" in dataset_extras
+            assert dataset_extras["campaign_allocation"] == sample_campaign_response.allocation
+            assert "source" in dataset_extras
+            assert dataset_extras["source"] == "Upstream Platform"
+            assert "data_type" in dataset_extras
+            assert dataset_extras["data_type"] == "environmental_sensor_data"
+            
+            # Verify station metadata is stored as direct resource fields
+            for resource in resources:
+                assert "station_id" in resource
+                assert resource["station_id"] == str(mock_station_data.id)
+                assert "station_name" in resource
+                assert resource["station_name"] == mock_station_data.name
+                assert "station_description" in resource
+                assert resource["station_description"] == mock_station_data.description
+                assert "station_contact_name" in resource
+                assert resource["station_contact_name"] == mock_station_data.contact_name
+                assert "station_contact_email" in resource
+                assert resource["station_contact_email"] == mock_station_data.contact_email
+                assert "station_active" in resource
+                assert resource["station_active"] == str(mock_station_data.active)
+                assert "station_geometry" in resource
+                assert "station_sensors_count" in resource
+                assert resource["station_sensors_count"] == str(len(mock_station_data.sensors))
 
         finally:
             try:
