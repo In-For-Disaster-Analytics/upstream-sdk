@@ -3,17 +3,45 @@ CKAN integration for Upstream SDK.
 """
 
 from datetime import datetime
+import json
 import logging
 import os
 from pathlib import Path
 from typing import Any, BinaryIO, Dict, List, Optional, Union
 
 import requests
+from upstream_api_client import GetStationResponse
 from upstream_api_client.models.get_campaign_response import GetCampaignResponse
 
 from .exceptions import APIError
 
 logger = logging.getLogger(__name__)
+
+
+def _serialize_for_json(value: Any) -> str:
+    """
+    Convert a value to a JSON-serializable string, with special handling for dates.
+
+    Args:
+        value: The value to serialize
+
+    Returns:
+        JSON-serializable string representation
+    """
+    if value is None:
+        return ""
+    elif isinstance(value, datetime):
+        # Format datetime for Solr compatibility (ISO format without timezone suffix)
+        # Solr expects format like: 2025-07-22T11:16:48Z
+        return value.strftime('%Y-%m-%dT%H:%M:%SZ')
+    elif isinstance(value, (dict, list)):
+        try:
+            return json.dumps(value, default=str)
+        except (TypeError, ValueError):
+            return str(value)
+    else:
+        return str(value)
+
 
 
 class CKANIntegration:
@@ -228,6 +256,7 @@ class CKANIntegration:
         resource_type: str = "data",
         format: str = "CSV",
         description: str = "",
+        metadata: Optional[List[Dict[str, Any]]] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -253,6 +282,7 @@ class CKANIntegration:
             "resource_type": resource_type,
             "format": format,
             "description": description,
+            "extras": metadata,
             **kwargs,
         }
 
@@ -370,7 +400,7 @@ class CKANIntegration:
         campaign_data: GetCampaignResponse,
         station_measurements: BinaryIO,
         station_sensors: BinaryIO,
-        station_name: str,
+        station_data: GetStationResponse,
         auto_publish: bool = True,
     ) -> Dict[str, Any]:
         """
@@ -402,9 +432,15 @@ class CKANIntegration:
             "notes": description,
             "tags": ["environmental", "sensors", "upstream"],
             "extras": [
-                {"key": "campaign_id", "value": campaign_id},
                 {"key": "source", "value": "Upstream Platform"},
                 {"key": "data_type", "value": "environmental_sensor_data"},
+                {"key": "campaign", "value": _serialize_for_json(campaign_data.to_dict())},
+                {"key": "campaign_id", "value": campaign_id},
+                {"key": "campaign_name", "value": campaign_data.name or ""},
+                {"key": "campaign_description", "value": campaign_data.description or ""},
+                {"key": "campaign_contact_name", "value": campaign_data.contact_name or ""},
+                {"key": "campaign_contact_email", "value": campaign_data.contact_email or ""},
+                {"key": "campaign_allocation", "value": campaign_data.allocation or ""},
             ],
         }
 
@@ -425,24 +461,44 @@ class CKANIntegration:
             # Add resources for different data types
             resources_created = []
 
+
+            station_metadata = [
+                {"key": "station_id", "value": str(station_data.id)},
+                {"key": "station_name", "value": station_data.name or ""},
+                {"key": "station_description", "value": station_data.description or ""},
+                {"key": "station_contact_name", "value": station_data.contact_name or ""},
+                {"key": "station_contact_email", "value": station_data.contact_email or ""},
+                {"key": "station_active", "value": str(station_data.active)},
+                {"key": "station_geometry", "value": _serialize_for_json(station_data.geometry)},
+                {"key": "station_sensors", "value": _serialize_for_json([sensor.to_dict() for sensor in station_data.sensors])},
+                {"key": "station_sensors_count", "value": str(len(station_data.sensors))},
+                {"key": "station_sensors_aliases", "value": _serialize_for_json([sensor.alias for sensor in station_data.sensors])},
+                {"key": "station_sensors_units", "value": _serialize_for_json([sensor.units for sensor in station_data.sensors])},
+                {"key": "station_sensors_descriptions", "value": _serialize_for_json([sensor.description for sensor in station_data.sensors])},
+                {"key": "station_sensors_variablename", "value": _serialize_for_json([sensor.variablename for sensor in station_data.sensors])},
+            ]
+
+
             # Add sensors resource (file upload or URL)
-            published_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            published_at = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
             sensors_resource = self.create_resource(
                 dataset_id=dataset["id"],
-                name=f"{station_name} - Sensors Configuration",
+                name=f"{station_data.name} - Sensors Configuration - {published_at}",
                 file_obj=station_sensors,
                 format="CSV",
                 description="Sensor configuration and metadata",
+                metadata=station_metadata,
             )
             resources_created.append(sensors_resource)
 
             # Add measurements resource (file upload or URL)
             measurements_resource = self.create_resource(
                     dataset_id=dataset["id"],
-                    name=f"{station_name} - Measurement Data",
+                    name=f"{station_data.name} - Measurement Data - {published_at}",
                     file_obj=station_measurements,
                     format="CSV",
                     description="Environmental sensor measurements",
+                    metadata=station_metadata,
                 )
             resources_created.append(measurements_resource)
 

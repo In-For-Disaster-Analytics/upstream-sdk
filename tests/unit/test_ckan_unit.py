@@ -2,6 +2,7 @@
 Unit tests for CKAN integration module.
 """
 
+import io
 import json
 import tempfile
 from pathlib import Path
@@ -9,7 +10,7 @@ from unittest.mock import Mock, patch, mock_open
 
 import pytest
 import requests
-from upstream_api_client import GetCampaignResponse, SummaryGetCampaign
+from upstream_api_client import GetCampaignResponse, SummaryGetCampaign, GetStationResponse
 
 from upstream.ckan import CKANIntegration
 from upstream.exceptions import APIError
@@ -80,6 +81,22 @@ def sample_campaign_response():
             sensor_types=["temperature", "humidity"],
             sensor_variables=["temperature", "humidity"],
         ),
+    )
+
+
+@pytest.fixture  
+def mock_station_data():
+    """Sample station data for testing."""
+    return GetStationResponse(
+        id=123,
+        name="Test Station", 
+        description="A test station",
+        contact_name="Station Contact",
+        contact_email="station@example.com",
+        active=True,
+        start_date="2024-01-01T00:00:00Z",
+        geometry={"type": "Point", "coordinates": [-97.7431, 30.2672]},
+        sensors=[]
     )
 
 
@@ -442,7 +459,7 @@ class TestCKANCampaignPublishing:
     @patch("upstream.ckan.CKANIntegration.create_dataset")
     @patch("upstream.ckan.CKANIntegration.get_dataset")
     def test_publish_campaign_success(
-        self, mock_get, mock_create, mock_create_resource, sample_campaign_response
+        self, mock_get, mock_create, mock_create_resource, sample_campaign_response, mock_station_data
     ):
         """Test successful campaign publishing."""
         # Mock get_dataset to raise APIError (dataset doesn't exist)
@@ -468,7 +485,7 @@ class TestCKANCampaignPublishing:
             campaign_data=sample_campaign_response,
             station_measurements=mock_station_measurements_csv,
             station_sensors=mock_station_sensors_csv,
-            station_name="Test Station"
+            station_data=mock_station_data
         )
 
         assert result["success"] is True
@@ -483,7 +500,7 @@ class TestCKANCampaignPublishing:
     @patch("upstream.ckan.CKANIntegration.update_dataset")
     @patch("upstream.ckan.CKANIntegration.get_dataset")
     def test_publish_campaign_update_existing(
-        self, mock_get, mock_update, mock_create_resource, sample_campaign_response
+        self, mock_get, mock_update, mock_create_resource, sample_campaign_response, mock_station_data
     ):
         """Test updating existing campaign dataset."""
         # Mock get_dataset to return existing dataset
@@ -513,7 +530,7 @@ class TestCKANCampaignPublishing:
             campaign_data=sample_campaign_response,
             station_measurements=mock_station_measurements_csv,
             station_sensors=mock_station_sensors_csv,
-            station_name="Test Station"
+            station_data=mock_station_data
         )
 
         assert result["success"] is True
@@ -522,7 +539,7 @@ class TestCKANCampaignPublishing:
     @patch("upstream.ckan.CKANIntegration.create_dataset")
     @patch("upstream.ckan.CKANIntegration.get_dataset")
     def test_publish_campaign_creation_failure(
-        self, mock_get, mock_create, sample_campaign_response
+        self, mock_get, mock_create, sample_campaign_response, mock_station_data
     ):
         """Test campaign publishing with dataset creation failure."""
         mock_get.side_effect = APIError("Dataset not found")
@@ -536,7 +553,7 @@ class TestCKANCampaignPublishing:
                 campaign_data=sample_campaign_response,
                 station_measurements=mock_station_measurements_csv,
                 station_sensors=mock_station_sensors_csv,
-                station_name="Test Station"
+                station_data=mock_station_data
             )
 
 

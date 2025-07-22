@@ -10,7 +10,7 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
-from upstream_api_client import GetCampaignResponse, SummaryGetCampaign
+from upstream_api_client import GetCampaignResponse, SummaryGetCampaign, GetStationResponse
 
 from upstream.ckan import CKANIntegration
 from upstream.client import UpstreamClient
@@ -74,6 +74,22 @@ def sample_campaign_response():
             sensor_types=["temperature", "humidity", "pressure"],
             sensor_variables=["temperature", "humidity", "pressure"],
         ),
+    )
+
+
+@pytest.fixture
+def mock_station_data():
+    """Sample station data for testing."""
+    return GetStationResponse(
+        id=123,
+        name="Test Station",
+        description="A test station for CKAN integration",
+        contact_name="Station Contact",
+        contact_email="station@example.com",
+        active=True,
+        start_date=datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ"),
+        geometry={"type": "Point", "coordinates": [-97.7431, 30.2672]},
+        sensors=[]
     )
 
 
@@ -268,6 +284,7 @@ class TestCKANCampaignPublishing:
         sample_campaign_response,
         mock_station_sensors_csv,
         mock_station_measurements_csv,
+        mock_station_data,
     ):
         """Test publishing campaign data with stream uploads."""
         campaign_id = sample_campaign_response.id
@@ -280,7 +297,7 @@ class TestCKANCampaignPublishing:
                 campaign_data=sample_campaign_response,
                 station_measurements=mock_station_measurements_csv,
                 station_sensors=mock_station_sensors_csv,
-                station_name="Test Station",
+                station_data=mock_station_data,
                 auto_publish=False,
             )
 
@@ -298,9 +315,10 @@ class TestCKANCampaignPublishing:
 
             # Verify resources were created
             resources = result["resources"]
+            resource_names = [r["name"] for r in resources]
             assert len(resources) == 2
-            assert "Test Station - Sensors Configuration" in [r["name"] for r in resources]
-            assert "Test Station - Measurement Data" in [r["name"] for r in resources]
+            assert any("Test Station - Sensors Configuration" in name for name in resource_names)
+            assert any("Test Station - Measurement Data" in name for name in resource_names)
 
         finally:
             try:
@@ -310,7 +328,7 @@ class TestCKANCampaignPublishing:
 
     def test_publish_campaign_update_existing(
         self, ckan_client: CKANIntegration, sample_campaign_response,
-        mock_station_sensors_csv, mock_station_measurements_csv
+        mock_station_sensors_csv, mock_station_measurements_csv, mock_station_data
     ):
         """Test updating an existing campaign dataset."""
         campaign_id = sample_campaign_response.id
@@ -323,7 +341,7 @@ class TestCKANCampaignPublishing:
                 campaign_data=sample_campaign_response,
                 station_measurements=mock_station_measurements_csv,
                 station_sensors=mock_station_sensors_csv,
-                station_name="Test Station",
+                station_data=mock_station_data,
             )
 
             initial_dataset_id = result1["dataset"]["id"]
@@ -343,7 +361,7 @@ class TestCKANCampaignPublishing:
                 campaign_data=updated_campaign,
                 station_measurements=measurements_csv,
                 station_sensors=sensors_csv,
-                station_name="Test Station",
+                station_data=mock_station_data,
             )
 
             # Should update the same dataset
@@ -352,7 +370,8 @@ class TestCKANCampaignPublishing:
 
         finally:
             try:
-                ckan_client.delete_dataset(dataset_name)
+                print(f"Deleting dataset: {dataset_name}")
+                # ckan_client.delete_dataset(dataset_name)
             except APIError:
                 pass
 

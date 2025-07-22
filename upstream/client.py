@@ -467,11 +467,11 @@ class UpstreamClient:
         """
         if not self.ckan:
             raise ConfigurationError("CKAN integration not configured")
-        station_name = self.stations.get(station_id=station_id, campaign_id=campaign_id).name
+        station_data = self.stations.get(station_id=station_id, campaign_id=campaign_id)
         station_measurements = self.stations.export_station_measurements(station_id=station_id, campaign_id=campaign_id)
         station_sensors = self.stations.export_station_sensors(station_id=station_id, campaign_id=campaign_id)
         campaign_data = self.campaigns.get(campaign_id=campaign_id)
-        return self.ckan.publish_campaign(campaign_id=campaign_id, campaign_data=campaign_data, station_measurements=station_measurements, station_sensors=station_sensors, station_name=station_name)
+        return self.ckan.publish_campaign(campaign_id=campaign_id, campaign_data=campaign_data, station_measurements=station_measurements, station_sensors=station_sensors, station_data=station_data)
 
     def logout(self) -> None:
         """Logout and invalidate authentication."""
