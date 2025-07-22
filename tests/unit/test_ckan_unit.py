@@ -495,6 +495,39 @@ class TestCKANCampaignPublishing:
 
         mock_create.assert_called_once()
         assert mock_create_resource.call_count == 2
+        
+        # Verify dataset metadata structure (back to extras array format)
+        create_call_args = mock_create.call_args[1]  # Get keyword arguments
+        assert "extras" in create_call_args
+        extras = create_call_args["extras"]
+        
+        # Convert extras list to dict for easier testing
+        extras_dict = {extra["key"]: extra["value"] for extra in extras}
+        
+        # Verify required campaign metadata fields
+        assert extras_dict["source"] == "Upstream Platform"
+        assert extras_dict["data_type"] == "environmental_sensor_data"
+        assert extras_dict["campaign_id"] == "test-campaign-123"
+        assert extras_dict["campaign_name"] == sample_campaign_response.name
+        assert extras_dict["campaign_contact_name"] == sample_campaign_response.contact_name
+        assert extras_dict["campaign_contact_email"] == sample_campaign_response.contact_email
+        assert extras_dict["campaign_allocation"] == sample_campaign_response.allocation
+        
+        # Verify resource metadata structure (station data added as direct fields)
+        resource_calls = mock_create_resource.call_args_list
+        assert len(resource_calls) == 2
+        
+        # Check that both resources have station metadata as direct fields
+        for call in resource_calls:
+            call_kwargs = call[1]  # Get keyword arguments
+            assert "metadata" in call_kwargs
+            metadata = call_kwargs["metadata"]
+            
+            # Convert metadata to dict for easier testing
+            metadata_dict = {meta["key"]: meta["value"] for meta in metadata}
+            assert metadata_dict["station_id"] == str(mock_station_data.id)
+            assert metadata_dict["station_name"] == mock_station_data.name
+            assert metadata_dict["station_active"] == str(mock_station_data.active)
 
     @patch("upstream.ckan.CKANIntegration.create_resource")
     @patch("upstream.ckan.CKANIntegration.update_dataset")

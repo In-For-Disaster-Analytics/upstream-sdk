@@ -118,7 +118,6 @@ class CKANIntegration:
         dataset_data = {k: v for k, v in dataset_data.items() if v is not None}
 
         try:
-            print('Response', self.session.headers)
             response = self.session.post(
                 f"{self.ckan_url}/api/3/action/package_create", json=dataset_data
             )
@@ -284,7 +283,7 @@ class CKANIntegration:
             "description": description,
             **kwargs,
         }
-        
+
         # Add metadata fields directly to resource (not in extras array)
         if metadata:
             for meta_item in metadata:
