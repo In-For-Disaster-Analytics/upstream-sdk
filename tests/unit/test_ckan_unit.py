@@ -635,3 +635,706 @@ class TestCKANErrorHandling:
 
         with pytest.raises(APIError, match="Failed to create CKAN dataset"):
             ckan.create_dataset(name="test-dataset", title="Test")
+
+
+class TestCKANCustomMetadata:
+    """Test CKAN custom metadata functionality."""
+
+    @patch("upstream.ckan.CKANIntegration.create_resource")
+    @patch("upstream.ckan.CKANIntegration.create_dataset")
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    def test_publish_campaign_with_custom_dataset_metadata(
+        self, mock_get, mock_create, mock_create_resource, sample_campaign_response, mock_station_data
+    ):
+        """Test publishing campaign with custom dataset metadata."""
+        mock_get.side_effect = APIError("Dataset not found")
+        
+        mock_create.return_value = {
+            "id": "dataset-id",
+            "name": "upstream-campaign-test-campaign-123",
+            "title": "Test Campaign",
+        }
+        
+        mock_create_resource.return_value = {
+            "id": "resource-id",
+            "name": "Test Resource",
+        }
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_dataset_metadata = {
+            "project_name": "Water Quality Study",
+            "funding_agency": "EPA",
+            "study_period": "2024-2025",
+            "principal_investigator": "Dr. Jane Smith"
+        }
+
+        result = ckan.publish_campaign(
+            campaign_id="test-campaign-123",
+            campaign_data=sample_campaign_response,
+            station_measurements=mock_station_measurements_csv,
+            station_sensors=mock_station_sensors_csv,
+            station_data=mock_station_data,
+            dataset_metadata=custom_dataset_metadata
+        )
+
+        assert result["success"] is True
+        mock_create.assert_called_once()
+
+        # Verify custom metadata was added to extras
+        create_call_args = mock_create.call_args[1]
+        extras = create_call_args["extras"]
+        extras_dict = {extra["key"]: extra["value"] for extra in extras}
+        
+        # Check custom metadata fields
+        assert extras_dict["project_name"] == "Water Quality Study"
+        assert extras_dict["funding_agency"] == "EPA"
+        assert extras_dict["study_period"] == "2024-2025"
+        assert extras_dict["principal_investigator"] == "Dr. Jane Smith"
+        
+        # Ensure base metadata still exists
+        assert extras_dict["source"] == "Upstream Platform"
+        assert extras_dict["data_type"] == "environmental_sensor_data"
+        assert extras_dict["campaign_id"] == "test-campaign-123"
+
+    @patch("upstream.ckan.CKANIntegration.create_resource")
+    @patch("upstream.ckan.CKANIntegration.create_dataset")
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    def test_publish_campaign_with_custom_resource_metadata(
+        self, mock_get, mock_create, mock_create_resource, sample_campaign_response, mock_station_data
+    ):
+        """Test publishing campaign with custom resource metadata."""
+        mock_get.side_effect = APIError("Dataset not found")
+        
+        mock_create.return_value = {
+            "id": "dataset-id",
+            "name": "upstream-campaign-test-campaign-123",
+            "title": "Test Campaign",
+        }
+        
+        mock_create_resource.return_value = {
+            "id": "resource-id",
+            "name": "Test Resource",
+        }
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_resource_metadata = {
+            "quality_level": "Level 2",
+            "processing_version": "v2.1",
+            "calibration_date": "2024-01-15",
+            "data_quality": "QC Passed"
+        }
+
+        result = ckan.publish_campaign(
+            campaign_id="test-campaign-123",
+            campaign_data=sample_campaign_response,
+            station_measurements=mock_station_measurements_csv,
+            station_sensors=mock_station_sensors_csv,
+            station_data=mock_station_data,
+            resource_metadata=custom_resource_metadata
+        )
+
+        assert result["success"] is True
+        assert mock_create_resource.call_count == 2
+
+        # Verify custom metadata was added to both resources
+        for call in mock_create_resource.call_args_list:
+            call_kwargs = call[1]
+            metadata = call_kwargs["metadata"]
+            metadata_dict = {meta["key"]: meta["value"] for meta in metadata}
+            
+            # Check custom resource metadata
+            assert metadata_dict["quality_level"] == "Level 2"
+            assert metadata_dict["processing_version"] == "v2.1"
+            assert metadata_dict["calibration_date"] == "2024-01-15"
+            assert metadata_dict["data_quality"] == "QC Passed"
+            
+            # Ensure base station metadata still exists
+            assert metadata_dict["station_id"] == str(mock_station_data.id)
+            assert metadata_dict["station_name"] == mock_station_data.name
+
+    @patch("upstream.ckan.CKANIntegration.create_resource")
+    @patch("upstream.ckan.CKANIntegration.create_dataset")
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    def test_publish_campaign_with_custom_tags(
+        self, mock_get, mock_create, mock_create_resource, sample_campaign_response, mock_station_data
+    ):
+        """Test publishing campaign with custom tags."""
+        mock_get.side_effect = APIError("Dataset not found")
+        
+        mock_create.return_value = {
+            "id": "dataset-id",
+            "name": "upstream-campaign-test-campaign-123",
+            "title": "Test Campaign",
+        }
+        
+        mock_create_resource.return_value = {
+            "id": "resource-id",
+            "name": "Test Resource",
+        }
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_tags = ["water-quality", "research", "epa-funded", "university-study"]
+
+        result = ckan.publish_campaign(
+            campaign_id="test-campaign-123",
+            campaign_data=sample_campaign_response,
+            station_measurements=mock_station_measurements_csv,
+            station_sensors=mock_station_sensors_csv,
+            station_data=mock_station_data,
+            custom_tags=custom_tags
+        )
+
+        assert result["success"] is True
+        mock_create.assert_called_once()
+
+        # Verify custom tags were added to base tags
+        create_call_args = mock_create.call_args[1]
+        tags = create_call_args["tags"]
+        
+        # Check that all tags are present (base + custom)
+        expected_tags = ["environmental", "sensors", "upstream"] + custom_tags
+        assert len(tags) == len(expected_tags)
+        for tag in expected_tags:
+            assert tag in tags
+
+    @patch("upstream.ckan.CKANIntegration.create_resource")
+    @patch("upstream.ckan.CKANIntegration.create_dataset")
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    def test_publish_campaign_with_all_custom_metadata(
+        self, mock_get, mock_create, mock_create_resource, sample_campaign_response, mock_station_data
+    ):
+        """Test publishing campaign with all custom metadata options."""
+        mock_get.side_effect = APIError("Dataset not found")
+        
+        mock_create.return_value = {
+            "id": "dataset-id",
+            "name": "upstream-campaign-test-campaign-123",
+            "title": "Test Campaign",
+        }
+        
+        mock_create_resource.return_value = {
+            "id": "resource-id",
+            "name": "Test Resource",
+        }
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_dataset_metadata = {
+            "project_name": "Comprehensive Study",
+            "institution": "University XYZ"
+        }
+        
+        custom_resource_metadata = {
+            "processing_level": "L2",
+            "version": "v1.0"
+        }
+        
+        custom_tags = ["comprehensive", "university-research"]
+        
+        additional_kwargs = {
+            "license_id": "cc-by-4.0",
+            "version": "1.0"
+        }
+
+        result = ckan.publish_campaign(
+            campaign_id="test-campaign-123",
+            campaign_data=sample_campaign_response,
+            station_measurements=mock_station_measurements_csv,
+            station_sensors=mock_station_sensors_csv,
+            station_data=mock_station_data,
+            dataset_metadata=custom_dataset_metadata,
+            resource_metadata=custom_resource_metadata,
+            custom_tags=custom_tags,
+            auto_publish=False,
+            **additional_kwargs
+        )
+
+        assert result["success"] is True
+        mock_create.assert_called_once()
+
+        # Verify all custom elements are present
+        create_call_args = mock_create.call_args[1]
+        
+        # Check dataset-level kwargs
+        assert create_call_args["license_id"] == "cc-by-4.0"
+        assert create_call_args["version"] == "1.0"
+        
+        # Check custom dataset metadata in extras
+        extras = create_call_args["extras"]
+        extras_dict = {extra["key"]: extra["value"] for extra in extras}
+        assert extras_dict["project_name"] == "Comprehensive Study"
+        assert extras_dict["institution"] == "University XYZ"
+        
+        # Check custom tags
+        tags = create_call_args["tags"]
+        expected_tags = ["environmental", "sensors", "upstream", "comprehensive", "university-research"]
+        assert len(tags) == len(expected_tags)
+        for tag in expected_tags:
+            assert tag in tags
+
+        # Check custom resource metadata
+        for call in mock_create_resource.call_args_list:
+            call_kwargs = call[1]
+            metadata = call_kwargs["metadata"]
+            metadata_dict = {meta["key"]: meta["value"] for meta in metadata}
+            assert metadata_dict["processing_level"] == "L2"
+            assert metadata_dict["version"] == "v1.0"
+
+    @patch("upstream.ckan.CKANIntegration.create_resource")
+    @patch("upstream.ckan.CKANIntegration.create_dataset")
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    def test_publish_campaign_empty_custom_metadata(
+        self, mock_get, mock_create, mock_create_resource, sample_campaign_response, mock_station_data
+    ):
+        """Test publishing campaign with empty custom metadata (should work normally)."""
+        mock_get.side_effect = APIError("Dataset not found")
+        
+        mock_create.return_value = {
+            "id": "dataset-id",
+            "name": "upstream-campaign-test-campaign-123",
+            "title": "Test Campaign",
+        }
+        
+        mock_create_resource.return_value = {
+            "id": "resource-id",
+            "name": "Test Resource",
+        }
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        result = ckan.publish_campaign(
+            campaign_id="test-campaign-123",
+            campaign_data=sample_campaign_response,
+            station_measurements=mock_station_measurements_csv,
+            station_sensors=mock_station_sensors_csv,
+            station_data=mock_station_data,
+            dataset_metadata={},  # Empty dict
+            resource_metadata={},  # Empty dict
+            custom_tags=[],  # Empty list
+        )
+
+        assert result["success"] is True
+        mock_create.assert_called_once()
+
+        # Verify only base metadata exists
+        create_call_args = mock_create.call_args[1]
+        
+        # Check that base tags still exist even with empty custom_tags
+        tags = create_call_args["tags"]
+        base_tags = ["environmental", "sensors", "upstream"]
+        assert len(tags) == len(base_tags)
+        for tag in base_tags:
+            assert tag in tags
+
+        # Check that base extras still exist
+        extras = create_call_args["extras"]
+        extras_dict = {extra["key"]: extra["value"] for extra in extras}
+        assert extras_dict["source"] == "Upstream Platform"
+        assert extras_dict["data_type"] == "environmental_sensor_data"
+
+    @patch("upstream.ckan.CKANIntegration.create_resource")
+    @patch("upstream.ckan.CKANIntegration.create_dataset")
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    def test_publish_campaign_none_custom_metadata(
+        self, mock_get, mock_create, mock_create_resource, sample_campaign_response, mock_station_data
+    ):
+        """Test publishing campaign with None custom metadata (default behavior)."""
+        mock_get.side_effect = APIError("Dataset not found")
+        
+        mock_create.return_value = {
+            "id": "dataset-id",
+            "name": "upstream-campaign-test-campaign-123",
+            "title": "Test Campaign",
+        }
+        
+        mock_create_resource.return_value = {
+            "id": "resource-id",
+            "name": "Test Resource",
+        }
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        result = ckan.publish_campaign(
+            campaign_id="test-campaign-123",
+            campaign_data=sample_campaign_response,
+            station_measurements=mock_station_measurements_csv,
+            station_sensors=mock_station_sensors_csv,
+            station_data=mock_station_data,
+            dataset_metadata=None,
+            resource_metadata=None,
+            custom_tags=None,
+        )
+
+        assert result["success"] is True
+        mock_create.assert_called_once()
+
+        # Verify base behavior remains the same
+        create_call_args = mock_create.call_args[1]
+        
+        # Check base tags
+        tags = create_call_args["tags"]
+        base_tags = ["environmental", "sensors", "upstream"]
+        assert len(tags) == len(base_tags)
+        for tag in base_tags:
+            assert tag in tags
+
+        # Check base extras
+        extras = create_call_args["extras"]
+        extras_dict = {extra["key"]: extra["value"] for extra in extras}
+        assert extras_dict["source"] == "Upstream Platform"
+        assert extras_dict["data_type"] == "environmental_sensor_data"
+        assert extras_dict["campaign_id"] == "test-campaign-123"
+
+
+class TestCKANUpdateDatasetEnhanced:
+    """Test enhanced CKAN update_dataset functionality with metadata support."""
+
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    @patch("upstream.ckan.requests.Session.post")
+    def test_update_dataset_with_custom_metadata_merge(self, mock_post, mock_get):
+        """Test updating dataset with custom metadata (merge mode)."""
+        # Mock existing dataset
+        mock_get.return_value = {
+            "id": "test-id",
+            "name": "test-dataset",
+            "title": "Test Dataset",
+            "extras": [
+                {"key": "existing_field", "value": "existing_value"},
+                {"key": "source", "value": "Upstream Platform"}
+            ],
+            "tags": [{"name": "existing-tag"}, {"name": "another-tag"}]
+        }
+
+        # Mock update response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "success": True,
+            "result": {"id": "test-id", "name": "test-dataset", "title": "Updated Dataset"}
+        }
+        mock_post.return_value = mock_response
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_metadata = {
+            "project_name": "New Project",
+            "version": "2.0",
+            "existing_field": "updated_value"  # This should update existing field
+        }
+
+        result = ckan.update_dataset(
+            "test-dataset",
+            dataset_metadata=custom_metadata,
+            title="Updated Dataset",
+            merge_extras=True
+        )
+
+        # Verify the call was made
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args[1]["json"]
+
+        # Check that extras were merged correctly
+        extras_dict = {extra["key"]: extra["value"] for extra in call_args["extras"]}
+        assert extras_dict["existing_field"] == "updated_value"  # Updated
+        assert extras_dict["source"] == "Upstream Platform"  # Preserved
+        assert extras_dict["project_name"] == "New Project"  # Added
+        assert extras_dict["version"] == "2.0"  # Added
+
+        assert result["title"] == "Updated Dataset"
+
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    @patch("upstream.ckan.requests.Session.post")
+    def test_update_dataset_with_custom_metadata_replace(self, mock_post, mock_get):
+        """Test updating dataset with custom metadata (replace mode)."""
+        # Mock existing dataset
+        mock_get.return_value = {
+            "id": "test-id",
+            "name": "test-dataset",
+            "title": "Test Dataset",
+            "extras": [
+                {"key": "old_field", "value": "old_value"},
+                {"key": "another_old_field", "value": "another_old_value"}
+            ]
+        }
+
+        # Mock update response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "success": True,
+            "result": {"id": "test-id", "name": "test-dataset"}
+        }
+        mock_post.return_value = mock_response
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_metadata = {
+            "new_field": "new_value",
+            "project_status": "completed"
+        }
+
+        result = ckan.update_dataset(
+            "test-dataset",
+            dataset_metadata=custom_metadata,
+            merge_extras=False  # Replace all extras
+        )
+
+        # Verify the call was made
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args[1]["json"]
+
+        # Check that extras were replaced (only new fields present)
+        extras_dict = {extra["key"]: extra["value"] for extra in call_args["extras"]}
+        assert extras_dict["new_field"] == "new_value"
+        assert extras_dict["project_status"] == "completed"
+        assert "old_field" not in extras_dict
+        assert "another_old_field" not in extras_dict
+        assert len(call_args["extras"]) == 2
+
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    @patch("upstream.ckan.requests.Session.post")
+    def test_update_dataset_with_custom_tags_merge(self, mock_post, mock_get):
+        """Test updating dataset with custom tags (merge mode)."""
+        # Mock existing dataset
+        mock_get.return_value = {
+            "id": "test-id",
+            "name": "test-dataset", 
+            "title": "Test Dataset",
+            "tags": [{"name": "existing-tag"}, {"name": "another-tag"}]
+        }
+
+        # Mock update response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "success": True,
+            "result": {"id": "test-id", "name": "test-dataset"}
+        }
+        mock_post.return_value = mock_response
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_tags = ["new-tag", "additional-tag", "existing-tag"]  # Include one duplicate
+
+        result = ckan.update_dataset(
+            "test-dataset",
+            custom_tags=custom_tags,
+            merge_tags=True
+        )
+
+        # Verify the call was made
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args[1]["json"]
+
+        # Check that tags were merged and deduplicated
+        actual_tags = [tag["name"] for tag in call_args["tags"]]
+        expected_tags = ["existing-tag", "another-tag", "new-tag", "additional-tag"]
+        assert len(actual_tags) == 4  # No duplicates
+        for tag in expected_tags:
+            assert tag in actual_tags
+
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    @patch("upstream.ckan.requests.Session.post")
+    def test_update_dataset_with_custom_tags_replace(self, mock_post, mock_get):
+        """Test updating dataset with custom tags (replace mode)."""
+        # Mock existing dataset
+        mock_get.return_value = {
+            "id": "test-id",
+            "name": "test-dataset",
+            "title": "Test Dataset",
+            "tags": [{"name": "old-tag"}, {"name": "another-old-tag"}]
+        }
+
+        # Mock update response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "success": True,
+            "result": {"id": "test-id", "name": "test-dataset"}
+        }
+        mock_post.return_value = mock_response
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_tags = ["new-tag", "replacement-tag"]
+
+        result = ckan.update_dataset(
+            "test-dataset",
+            custom_tags=custom_tags,
+            merge_tags=False  # Replace all tags
+        )
+
+        # Verify the call was made
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args[1]["json"]
+
+        # Check that tags were replaced
+        actual_tags = [tag["name"] for tag in call_args["tags"]]
+        assert len(actual_tags) == 2
+        assert "new-tag" in actual_tags
+        assert "replacement-tag" in actual_tags
+        assert "old-tag" not in actual_tags
+        assert "another-old-tag" not in actual_tags
+
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    @patch("upstream.ckan.requests.Session.post")
+    def test_update_dataset_with_all_custom_options(self, mock_post, mock_get):
+        """Test updating dataset with all custom metadata options."""
+        # Mock existing dataset
+        mock_get.return_value = {
+            "id": "test-id",
+            "name": "test-dataset",
+            "title": "Test Dataset",
+            "extras": [{"key": "old_field", "value": "old_value"}],
+            "tags": [{"name": "old-tag"}]
+        }
+
+        # Mock update response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "success": True,
+            "result": {"id": "test-id", "name": "test-dataset", "title": "Comprehensive Update"}
+        }
+        mock_post.return_value = mock_response
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        custom_metadata = {
+            "project_name": "Comprehensive Project",
+            "status": "active"
+        }
+        
+        custom_tags = ["comprehensive", "updated"]
+
+        result = ckan.update_dataset(
+            "test-dataset",
+            dataset_metadata=custom_metadata,
+            custom_tags=custom_tags,
+            merge_extras=True,
+            merge_tags=True,
+            title="Comprehensive Update",
+            version="3.0"
+        )
+
+        # Verify the call was made
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args[1]["json"]
+
+        # Check extras
+        extras_dict = {extra["key"]: extra["value"] for extra in call_args["extras"]}
+        assert extras_dict["old_field"] == "old_value"  # Preserved
+        assert extras_dict["project_name"] == "Comprehensive Project"  # Added
+        assert extras_dict["status"] == "active"  # Added
+
+        # Check tags
+        actual_tags = [tag["name"] for tag in call_args["tags"]]
+        assert "old-tag" in actual_tags  # Preserved
+        assert "comprehensive" in actual_tags  # Added
+        assert "updated" in actual_tags  # Added
+
+        # Check other fields
+        assert call_args["title"] == "Comprehensive Update"
+        assert call_args["version"] == "3.0"
+
+        assert result["title"] == "Comprehensive Update"
+
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    @patch("upstream.ckan.requests.Session.post")
+    def test_update_dataset_backward_compatibility(self, mock_post, mock_get):
+        """Test that enhanced update_dataset maintains backward compatibility."""
+        # Mock existing dataset
+        mock_get.return_value = {
+            "id": "test-id",
+            "name": "test-dataset",
+            "title": "Old Title"
+        }
+
+        # Mock update response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "success": True,
+            "result": {"id": "test-id", "name": "test-dataset", "title": "New Title"}
+        }
+        mock_post.return_value = mock_response
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        # Test old-style call (should still work)
+        result = ckan.update_dataset(
+            "test-dataset",
+            title="New Title",
+            tags=["tag1", "tag2"]  # Old-style tags as strings
+        )
+
+        # Verify the call was made
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args[1]["json"]
+
+        # Check that string tags were converted to dict format
+        assert call_args["title"] == "New Title"
+        actual_tags = call_args["tags"]
+        assert len(actual_tags) == 2
+        assert actual_tags[0]["name"] == "tag1"
+        assert actual_tags[1]["name"] == "tag2"
+
+        assert result["title"] == "New Title"
+
+    @patch("upstream.ckan.CKANIntegration.get_dataset")
+    @patch("upstream.ckan.requests.Session.post")
+    def test_update_dataset_empty_custom_metadata(self, mock_post, mock_get):
+        """Test updating dataset with empty custom metadata."""
+        # Mock existing dataset
+        mock_get.return_value = {
+            "id": "test-id",
+            "name": "test-dataset",
+            "title": "Test Dataset",
+            "extras": [{"key": "existing", "value": "value"}],
+            "tags": [{"name": "existing-tag"}]
+        }
+
+        # Mock update response
+        mock_response = Mock()
+        mock_response.status_code = 200
+        mock_response.raise_for_status.return_value = None
+        mock_response.json.return_value = {
+            "success": True,
+            "result": {"id": "test-id", "name": "test-dataset"}
+        }
+        mock_post.return_value = mock_response
+
+        ckan = CKANIntegration("http://test.example.com")
+
+        # Update with empty metadata (should not affect existing when merging)
+        result = ckan.update_dataset(
+            "test-dataset",
+            dataset_metadata={},  # Empty dict (should be ignored)
+            custom_tags=[],  # Empty list with merge_tags=True (should replace with empty)
+            merge_tags=False,  # Use replace mode for empty tags
+            title="Updated Title"
+        )
+
+        # Verify the call was made
+        mock_post.assert_called_once()
+        call_args = mock_post.call_args[1]["json"]
+
+        # Check that existing extras were preserved (empty dict should be ignored)
+        assert "extras" in call_args
+        extras_dict = {extra["key"]: extra["value"] for extra in call_args["extras"]}
+        assert extras_dict["existing"] == "value"
+
+        # Check that tags were replaced with empty list (replace mode)
+        actual_tags = call_args["tags"]
+        assert len(actual_tags) == 0
+
+        assert call_args["title"] == "Updated Title"

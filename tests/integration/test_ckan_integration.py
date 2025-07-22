@@ -319,7 +319,7 @@ class TestCKANCampaignPublishing:
             assert len(resources) == 2
             assert any("Test Station - Sensors Configuration" in name for name in resource_names)
             assert any("Test Station - Measurement Data" in name for name in resource_names)
-            
+
             # Verify resource metadata
             for resource in resources:
                 assert resource["format"] == "CSV"
@@ -327,7 +327,7 @@ class TestCKANCampaignPublishing:
                     assert resource["description"] == "Sensor configuration and metadata"
                 elif "Measurement Data" in resource["name"]:
                     assert resource["description"] == "Environmental sensor measurements"
-            
+
             # Verify campaign metadata is stored in dataset extras
             dataset_extras = {extra["key"]: extra["value"] for extra in dataset.get("extras", [])}
             assert "campaign_id" in dataset_extras
@@ -344,7 +344,7 @@ class TestCKANCampaignPublishing:
             assert dataset_extras["source"] == "Upstream Platform"
             assert "data_type" in dataset_extras
             assert dataset_extras["data_type"] == "environmental_sensor_data"
-            
+
             # Verify station metadata is stored as direct resource fields
             for resource in resources:
                 assert "station_id" in resource
@@ -414,7 +414,7 @@ class TestCKANCampaignPublishing:
         finally:
             try:
                 print(f"Deleting dataset: {dataset_name}")
-                # ckan_client.delete_dataset(dataset_name)
+                ckan_client.delete_dataset(dataset_name)
             except APIError:
                 pass
 

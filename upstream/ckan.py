@@ -60,7 +60,6 @@ class CKANIntegration:
         self.ckan_url = ckan_url.rstrip("/")
         self.config = config or {}
         self.session = requests.Session()
-        self.session.timeout = self.config.get("timeout", 30)
 
         # Set up authentication if provided
         api_key = self.config.get("api_key")
@@ -69,7 +68,7 @@ class CKANIntegration:
 
         access_token = self.config.get("access_token")
         if access_token:
-            self.session.headers.update({"Authorization": access_token})
+            self.session.headers.update({"Authorization": f"Bearer {access_token}"})
 
     def create_dataset(
         self,
@@ -166,29 +165,103 @@ class CKANIntegration:
                 raise APIError(f"CKAN dataset not found: {dataset_id}")
             raise APIError(f"Failed to get CKAN dataset: {e}")
 
-    def update_dataset(self, dataset_id: str, **kwargs: Any) -> Dict[str, Any]:
+    def update_dataset(
+        self,
+        dataset_id: str,
+        dataset_metadata: Optional[Dict[str, Any]] = None,
+        custom_tags: Optional[List[str]] = None,
+        merge_extras: bool = True,
+        merge_tags: bool = True,
+        **kwargs: Any
+    ) -> Dict[str, Any]:
         """
-        Update CKAN dataset.
+        Update CKAN dataset with enhanced metadata support.
 
         Args:
             dataset_id: Dataset ID or name
-            **kwargs: Dataset fields to update
+            dataset_metadata: Custom metadata to add to dataset extras
+            custom_tags: Additional tags to add to the dataset
+            merge_extras: If True, merge with existing extras; if False, replace them
+            merge_tags: If True, merge with existing tags; if False, replace them
+            **kwargs: Additional dataset fields to update
 
         Returns:
             Updated dataset information
+
+        Examples:
+            Basic update:
+            >>> ckan.update_dataset("my-dataset", title="New Title")
+
+            Update with custom metadata:
+            >>> ckan.update_dataset(
+            ...     "my-dataset",
+            ...     dataset_metadata={"project_status": "completed", "final_report": "available"},
+            ...     custom_tags=["completed", "final"]
+            ... )
+
+            Replace all extras and tags:
+            >>> ckan.update_dataset(
+            ...     "my-dataset",
+            ...     dataset_metadata={"new_field": "value"},
+            ...     custom_tags=["new-tag"],
+            ...     merge_extras=False,
+            ...     merge_tags=False
+            ... )
         """
         # Get current dataset
         current_dataset = self.get_dataset(dataset_id)
 
-        # Update with new values
+        # Start with current dataset data and apply kwargs updates
         updated_data = {**current_dataset, **kwargs}
 
-        # Ensure tags are properly formatted as list of dictionaries
-        if "tags" in updated_data:
+        # Handle custom dataset metadata (extras)
+        if dataset_metadata:
+            current_extras = current_dataset.get('extras', [])
+
+            if merge_extras:
+                # Merge with existing extras
+                # Convert existing extras to dict for easier manipulation
+                extras_dict = {extra['key']: extra['value'] for extra in current_extras}
+
+                # Add/update with new metadata
+                for key, value in dataset_metadata.items():
+                    extras_dict[key] = _serialize_for_json(value)
+
+                # Convert back to list format
+                updated_data['extras'] = [{"key": k, "value": v} for k, v in extras_dict.items()]
+            else:
+                # Replace existing extras with only the new metadata
+                updated_data['extras'] = [{"key": k, "value": _serialize_for_json(v)} for k, v in dataset_metadata.items()]
+
+        # Handle custom tags
+        if custom_tags is not None:
+            current_tags = []
+            if current_dataset.get('tags'):
+                current_tags = [tag['name'] if isinstance(tag, dict) else tag for tag in current_dataset['tags']]
+
+            if merge_tags:
+                # Merge with existing tags (avoid duplicates)
+                all_tags = list(set(current_tags + custom_tags))
+            else:
+                # Replace with only the new tags
+                all_tags = custom_tags
+
+            updated_data['tags'] = all_tags
+
+        # Handle tags from kwargs (for backward compatibility)
+        if "tags" in updated_data and updated_data["tags"]:
             tags = updated_data["tags"]
-            if tags and isinstance(tags[0], str):
-                # Convert string tags to dict format
-                updated_data["tags"] = [{"name": tag} for tag in tags]
+            # Ensure tags are in the correct format
+            if isinstance(tags, list):
+                if tags and isinstance(tags[0], str):
+                    # Convert string tags to dict format for CKAN API
+                    updated_data["tags"] = [{"name": tag} for tag in tags]
+                elif tags and isinstance(tags[0], dict):
+                    # Already in correct format
+                    pass
+            else:
+                # Handle unexpected tag format
+                updated_data["tags"] = []
 
         try:
             response = self.session.post(
@@ -405,17 +478,26 @@ class CKANIntegration:
         station_measurements: BinaryIO,
         station_sensors: BinaryIO,
         station_data: GetStationResponse,
+        dataset_metadata: Optional[Dict[str, Any]] = None,
+        resource_metadata: Optional[Dict[str, Any]] = None,
+        custom_tags: Optional[List[str]] = None,
         auto_publish: bool = True,
+        **kwargs: Any
     ) -> Dict[str, Any]:
         """
-        Publish campaign data to CKAN.
+        Publish campaign data to CKAN with custom metadata support.
 
         Args:
             campaign_id: Campaign ID
             campaign_data: Campaign information
             station_measurements: BinaryIO stream of station measurements CSV
             station_sensors: BinaryIO stream of station sensors CSV
+            station_data: Station information
+            dataset_metadata: Custom metadata for the CKAN dataset (added to extras)
+            resource_metadata: Custom metadata for CKAN resources
+            custom_tags: Additional tags for the dataset
             auto_publish: Whether to automatically publish the dataset
+            **kwargs: Additional CKAN parameters
 
         Returns:
             CKAN publication result
@@ -429,23 +511,37 @@ class CKANIntegration:
         else:
             description = f"\nSensor Types: {', '.join(campaign_data.summary.sensor_types)}"
 
+        # Prepare base tags
+        base_tags = ["environmental", "sensors", "upstream"]
+        if custom_tags:
+            base_tags.extend(custom_tags)
+
+        # Prepare base dataset extras
+        base_extras = [
+            {"key": "source", "value": "Upstream Platform"},
+            {"key": "data_type", "value": "environmental_sensor_data"},
+            {"key": "campaign", "value": _serialize_for_json(campaign_data.to_dict())},
+            {"key": "campaign_id", "value": campaign_id},
+            {"key": "campaign_name", "value": campaign_data.name or ""},
+            {"key": "campaign_description", "value": campaign_data.description or ""},
+            {"key": "campaign_contact_name", "value": campaign_data.contact_name or ""},
+            {"key": "campaign_contact_email", "value": campaign_data.contact_email or ""},
+            {"key": "campaign_allocation", "value": campaign_data.allocation or ""},
+        ]
+
+        # Add custom dataset metadata to extras
+        if dataset_metadata:
+            for key, value in dataset_metadata.items():
+                base_extras.append({"key": key, "value": _serialize_for_json(value)})
+
         # Prepare dataset metadata
-        dataset_metadata = {
+        dataset_data = {
             "name": dataset_name,
             "title": dataset_title,
             "notes": description,
-            "tags": ["environmental", "sensors", "upstream"],
-            "extras": [
-                {"key": "source", "value": "Upstream Platform"},
-                {"key": "data_type", "value": "environmental_sensor_data"},
-                {"key": "campaign", "value": _serialize_for_json(campaign_data.to_dict())},
-                {"key": "campaign_id", "value": campaign_id},
-                {"key": "campaign_name", "value": campaign_data.name or ""},
-                {"key": "campaign_description", "value": campaign_data.description or ""},
-                {"key": "campaign_contact_name", "value": campaign_data.contact_name or ""},
-                {"key": "campaign_contact_email", "value": campaign_data.contact_email or ""},
-                {"key": "campaign_allocation", "value": campaign_data.allocation or ""},
-            ],
+            "tags": base_tags,
+            "extras": base_extras,
+            **kwargs  # Allow additional dataset-level parameters
         }
 
         try:
@@ -458,15 +554,16 @@ class CKANIntegration:
                 should_update = False
 
             if should_update:
-                dataset = self.update_dataset(dataset_name, **dataset_metadata)
+                dataset = self.update_dataset(dataset_name, **dataset_data)
             else:
-                dataset = self.create_dataset(**dataset_metadata)
+                dataset = self.create_dataset(**dataset_data)
 
             # Add resources for different data types
             resources_created = []
 
 
-            station_metadata = [
+            # Prepare base station metadata
+            base_station_metadata = [
                 {"key": "station_id", "value": str(station_data.id)},
                 {"key": "station_name", "value": station_data.name or ""},
                 {"key": "station_description", "value": station_data.description or ""},
@@ -482,6 +579,11 @@ class CKANIntegration:
                 {"key": "station_sensors_variablename", "value": _serialize_for_json([sensor.variablename for sensor in station_data.sensors])},
             ]
 
+            # Add custom resource metadata
+            if resource_metadata:
+                for key, value in resource_metadata.items():
+                    base_station_metadata.append({"key": key, "value": _serialize_for_json(value)})
+
 
             # Add sensors resource (file upload or URL)
             published_at = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
@@ -491,7 +593,7 @@ class CKANIntegration:
                 file_obj=station_sensors,
                 format="CSV",
                 description="Sensor configuration and metadata",
-                metadata=station_metadata,
+                metadata=base_station_metadata,
             )
             resources_created.append(sensors_resource)
 
@@ -502,7 +604,7 @@ class CKANIntegration:
                     file_obj=station_measurements,
                     format="CSV",
                     description="Environmental sensor measurements",
-                    metadata=station_metadata,
+                    metadata=base_station_metadata,
                 )
             resources_created.append(measurements_resource)
 
