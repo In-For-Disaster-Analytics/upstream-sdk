@@ -23,18 +23,23 @@ The Upstream Python SDK provides a standardized, production-ready toolkit for en
 ### 📊 **Complete Data Workflow**
 
 ```python
-from upstream import UpstreamClient
-
-# Initialize client
-client = UpstreamClient(username="researcher", password="password")
-
-# Create campaign and station
+from upstream.client import UpstreamClient
 from upstream_api_client.models import CampaignsIn, StationCreate
 from datetime import datetime, timedelta
 
+# Initialize client with CKAN integration
+client = UpstreamClient(
+    username="researcher",
+    password="password",
+    base_url="https://upstream-dso.tacc.utexas.edu/dev",
+    ckan_url="https://ckan.tacc.utexas.edu",
+    ckan_organization="your-org"
+)
+
+# Create campaign
 campaign_data = CampaignsIn(
-    name="Hurricane Monitoring 2024",
-    description="Hurricane monitoring campaign",
+    name="Environmental Monitoring 2024",
+    description="Environmental monitoring campaign with multi-sensor stations",
     contact_name="Dr. Jane Smith",
     contact_email="jane.smith@university.edu",
     allocation="TACC",
@@ -43,13 +48,13 @@ campaign_data = CampaignsIn(
 )
 campaign = client.create_campaign(campaign_data)
 
+# Create monitoring station
 station_data = StationCreate(
-    name="Galveston Pier",
-    description="Hurricane monitoring station at Galveston Pier",
+    name="Downtown Air Quality Monitor",
+    description="Multi-sensor environmental monitoring station",
     contact_name="Dr. Jane Smith",
     contact_email="jane.smith@university.edu",
-    start_date=datetime.now(),
-    active=True
+    start_date=datetime.now()
 )
 station = client.create_station(campaign.id, station_data)
 
@@ -61,33 +66,56 @@ result = client.upload_csv_data(
     measurements_file="measurements.csv"
 )
 
-# Automatically creates discoverable CKAN dataset
-print(f"Data published at: {result.ckan_url}")
+print(f"Uploaded {result['response']['Total sensors processed']} sensors")
+print(f"Added {result['response']['Total measurements added to database']} measurements")
+
+# Publish to CKAN with rich metadata
+publication = client.publish_to_ckan(
+    campaign_id=campaign.id,
+    station_id=station.id
+)
+print(f"Data published at: {publication['ckan_url']}")
 ```
 
 ### 🚀 **Production-Ready Features**
 
-- **Automatic chunking** for large datasets (>50MB)
-- **Retry mechanisms** with exponential backoff
-- **Comprehensive error handling** with detailed messages
-- **Progress tracking** for long-running uploads
-- **Extensive logging** for debugging and monitoring
+- **Type-safe interfaces** with Pydantic models and comprehensive validation
+- **Rich statistics** - automatic calculation of sensor measurement statistics
+- **Comprehensive error handling** with specific exception types (`APIError`, `ValidationError`)
+- **CKAN integration** with custom metadata support and automatic resource management
+- **Modular architecture** with dedicated managers for campaigns, stations, and sensors
+- **Extensive logging** and debugging capabilities
+- **Authentication management** with automatic token handling
 
-### 🔄 **Automation-Friendly**
+### 🔄 **CKAN Integration & Publishing**
 
-Perfect for automated sensor networks:
+Seamless data publishing to CKAN portals:
 
 ```python
-# Scheduled data upload every 6 hours
-def automated_upload():
-    # Collect sensor readings and save to CSV files
-    sensors_file, measurements_file = collect_sensor_readings()
-    client.upload_csv_data(
-        campaign_id=CAMPAIGN_ID,
-        station_id=STATION_ID,
-        sensors_file=sensors_file,
-        measurements_file=measurements_file
-    )
+# Publish with custom metadata
+publication_result = client.publish_to_ckan(
+    campaign_id=campaign_id,
+    station_id=station_id,
+    
+    # Custom dataset metadata
+    dataset_metadata={
+        "project_name": "Air Quality Study",
+        "funding_agency": "EPA",
+        "grant_number": "EPA-2024-001"
+    },
+    
+    # Custom resource metadata
+    resource_metadata={
+        "calibration_date": "2024-01-15",
+        "quality_control": "Automated + Manual Review",
+        "uncertainty_bounds": "±2% of reading"
+    },
+    
+    # Custom tags for discoverability
+    custom_tags=["air-quality", "epa-funded", "quality-controlled"]
+)
+
+print(f"Dataset published: {publication_result['ckan_url']}")
 ```
 
 ## Installation
@@ -102,54 +130,96 @@ For development:
 pip install upstream-sdk[dev]
 ```
 
+## Demo Notebooks
+
+The SDK includes comprehensive demo notebooks that showcase all features:
+
+### 📓 **UpstreamSDK_Core_Demo.ipynb**
+Interactive demonstration of core functionality:
+- Authentication and client setup
+- Campaign creation and management  
+- Station setup with sensor configuration
+- CSV data upload with comprehensive validation
+- Sensor statistics and analytics
+- Error handling and best practices
+
+### 📓 **UpstreamSDK_CKAN_Demo.ipynb**
+Complete CKAN integration workflow:
+- CKAN portal setup and authentication
+- Data export and preparation for publishing
+- Dataset creation with rich metadata
+- Custom metadata support (dataset, resource, and tags)
+- Resource management and updates
+- Dataset discovery and search capabilities
+
+Both notebooks include detailed explanations, practical examples, and production-ready code patterns.
+
 ## Quick Start
 
 ### 1. Basic Setup
 
 ```python
-from upstream import UpstreamClient
+from upstream.client import UpstreamClient
 
-# Initialize with credentials
+# Initialize with credentials and CKAN integration
 client = UpstreamClient(
     username="your_username",
     password="your_password",
-    base_url="https://upstream-dso.tacc.utexas.edu/dev"
+    base_url="https://upstream-dso.tacc.utexas.edu/dev",
+    ckan_url="https://ckan.tacc.utexas.edu",
+    ckan_organization="your-org"
 )
+
+# Test authentication
+if client.authenticate():
+    print("✅ Connected successfully!")
 ```
 
 ### 2. Create Campaign
 
 ```python
+from upstream.campaigns import CampaignManager
 from upstream_api_client.models import CampaignsIn
 from datetime import datetime, timedelta
 
+# Initialize campaign manager
+campaign_manager = CampaignManager(client.auth_manager)
+
 campaign_data = CampaignsIn(
-    name="Air Quality Monitoring 2024",
-    description="Urban air quality sensor network deployment",
+    name="Environmental Monitoring 2024",
+    description="Multi-sensor environmental monitoring network",
     contact_name="Dr. Jane Smith",
     contact_email="jane.smith@university.edu",
     allocation="TACC",
     start_date=datetime.now(),
     end_date=datetime.now() + timedelta(days=365)
 )
-campaign = client.create_campaign(campaign_data)
+campaign = campaign_manager.create(campaign_data)
+print(f"Campaign created with ID: {campaign.id}")
 ```
 
 ### 3. Register Monitoring Station
 
 ```python
+from upstream.stations import StationManager
 from upstream_api_client.models import StationCreate
 from datetime import datetime
 
+# Initialize station manager
+station_manager = StationManager(client.auth_manager)
+
 station_data = StationCreate(
-    name="Downtown Monitor",
-    description="City center air quality station",
+    name="Downtown Air Quality Monitor",
+    description="Multi-sensor air quality monitoring station",
     contact_name="Dr. Jane Smith",
     contact_email="jane.smith@university.edu",
-    start_date=datetime.now(),
-    active=True
+    start_date=datetime.now()
 )
-station = client.create_station(campaign.id, station_data)
+station = station_manager.create(
+    campaign_id=str(campaign.id),
+    station_create=station_data
+)
+print(f"Station created with ID: {station.id}")
 ```
 
 ### 4. Upload Sensor Data
@@ -163,8 +233,11 @@ result = client.upload_csv_data(
     measurements_file="path/to/measurements.csv"
 )
 
-print(f"Uploaded {result.sensors_processed} sensors")
-print(f"Added {result.measurements_added} measurements")
+# Access detailed results
+response = result['response']
+print(f"Sensors processed: {response['Total sensors processed']}")
+print(f"Measurements added: {response['Total measurements added to database']}")
+print(f"Processing time: {response['Data Processing time']}")
 ```
 
 ## Data Format Requirements
@@ -173,100 +246,122 @@ print(f"Added {result.measurements_added} measurements")
 
 ```csv
 alias,variablename,units,postprocess,postprocessscript
-temp_01,Air Temperature,°C,,
-humidity_01,Relative Humidity,%,,
-pm25_01,PM2.5 Concentration,μg/m³,,
+temp_01,Air Temperature,°C,false,
+humidity_01,Relative Humidity,%,false,
+PM25_01,PM2.5 Concentration,μg/m³,true,pm25_calibration
+wind_speed,Wind Speed,m/s,false,
+co2_01,CO2 Concentration,ppm,false,
 ```
 
 ### Measurements CSV Format
 
 ```csv
-collectiontime,Lat_deg,Lon_deg,temp_01,humidity_01,pm25_01
-2024-01-15T10:30:00Z,30.2672,-97.7431,23.5,65.2,12.8
-2024-01-15T10:31:00Z,30.2672,-97.7431,23.7,64.8,13.1
-2024-01-15T10:32:00Z,30.2672,-97.7431,23.9,64.5,12.9
+collectiontime,Lat_deg,Lon_deg,temp_01,humidity_01,PM25_01,wind_speed,co2_01
+2024-01-15T10:00:00,30.2672,-97.7431,22.5,68.2,15.2,3.2,420
+2024-01-15T10:05:00,30.2672,-97.7431,22.7,67.8,14.8,3.5,425
+2024-01-15T10:10:00,30.2672,-97.7431,22.9,67.5,16.1,3.1,418
 ```
 
 ## Advanced Usage
 
-### Automated Pipeline Example
+### Sensor Analytics and Statistics
 
 ```python
-import schedule
-from upstream import UpstreamClient
+# Get sensor statistics after upload
+sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
 
-client = UpstreamClient.from_config("config.yaml")
-
-def hourly_data_upload():
-    try:
-        # Collect data from sensors
-        sensor_data = collect_from_weather_station()
-
-        # Upload to Upstream
-        result = client.upload_csv_data(
-            campaign_id=CAMPAIGN_ID,
-            station_id=STATION_ID,
-            sensors_file=sensors_file,
-            measurements_file=measurements_file
-        )
-
-        logger.info(f"Successfully uploaded {result.sensors_processed} sensors and {result.measurements_added} measurements")
-
-    except Exception as e:
-        logger.error(f"Upload failed: {e}")
-        # Implement your error handling/alerting
-
-# Schedule uploads every hour
-schedule.every().hour.do(hourly_data_upload)
+for sensor in sensors.items:
+    stats = sensor.statistics
+    print(f"Sensor: {sensor.alias} ({sensor.variablename})")
+    print(f"  Measurements: {stats.count}")
+    print(f"  Range: {stats.min_value:.2f} - {stats.max_value:.2f} {sensor.units}")
+    print(f"  Average: {stats.avg_value:.2f} {sensor.units}")
+    print(f"  Std Dev: {stats.stddev_value:.3f}")
+    print(f"  Last value: {stats.last_measurement_value:.2f}")
+    print(f"  Updated: {stats.stats_last_updated}")
 ```
 
-### Large Dataset Handling
+### Error Handling and Validation
 
 ```python
-# For large files, use chunked upload
-result = client.upload_chunked_csv_data(
-    campaign_id=campaign.id,
-    station_id=station.id,
-    sensors_file="sensors.csv",
-    measurements_file="large_dataset.csv",  # 500MB file
-    chunk_size=10000  # rows per chunk
-)
-```
+from upstream.exceptions import APIError, ValidationError
+from upstream.campaigns import CampaignManager
+from upstream.stations import StationManager
 
-### Advanced Upload Options
-
-```python
-# For more control over uploads, use the advanced method
-result = client.upload_sensor_measurement_files(
-    campaign_id=campaign.id,
-    station_id=station.id,
-    sensors_file="sensors.csv",  # Can be file path, bytes, or (filename, bytes) tuple
-    measurements_file="measurements.csv",  # Can be file path, bytes, or (filename, bytes) tuple
-    chunk_size=1000  # Process in chunks of 1000 rows
-)
-```
-
-### Custom Data Processing
-
-```python
-# Pre-process data before upload
-def custom_pipeline():
-    # Your data collection logic
-    raw_data = collect_sensor_data()
-
-    # Apply quality control
-    cleaned_data = apply_qc_filters(raw_data)
-
-    # Transform to Upstream format
-    upstream_data = transform_data(cleaned_data)
-
-    # Upload processed data
-    client.upload_csv_data(
-        campaign_id=campaign.id,
-        station_id=station.id,
-        sensors_file="processed_sensors.csv",
-        measurements_file="processed_measurements.csv"
+try:
+    # Initialize managers
+    campaign_manager = CampaignManager(client.auth_manager)
+    station_manager = StationManager(client.auth_manager)
+    
+    # Create campaign with validation
+    campaign = campaign_manager.create(campaign_data)
+    station = station_manager.create(
+        campaign_id=str(campaign.id),
+        station_create=station_data
     )
+    
+except ValidationError as e:
+    print(f"Data validation failed: {e}")
+except APIError as e:
+    print(f"API error: {e}")
+except Exception as e:
+    print(f"Unexpected error: {e}")
+```
+
+### Comprehensive Data Upload
+
+```python
+# Upload with detailed response handling
+result = client.upload_csv_data(
+    campaign_id=campaign.id,
+    station_id=station.id,
+    sensors_file="path/to/sensors.csv",
+    measurements_file="path/to/measurements.csv"
+)
+
+# Access detailed upload information
+response = result['response']
+print(f"Sensors processed: {response['Total sensors processed']}")
+print(f"Measurements added: {response['Total measurements added to database']}")
+print(f"Processing time: {response['Data Processing time']}")
+print(f"Files stored: {response['uploaded_file_sensors stored in memory']}")
+```
+
+### Automated Data Pipeline
+
+```python
+# Complete automated workflow
+def automated_monitoring_pipeline():
+    try:
+        # List existing campaigns and stations
+        campaigns = client.list_campaigns(limit=5)
+        if campaigns.items:
+            campaign = campaigns.items[0]
+            stations = client.list_stations(campaign_id=str(campaign.id))
+            
+            if stations.items:
+                station = stations.items[0]
+                
+                # Upload new sensor data
+                result = client.upload_csv_data(
+                    campaign_id=campaign.id,
+                    station_id=station.id,
+                    sensors_file="latest_sensors.csv",
+                    measurements_file="latest_measurements.csv"
+                )
+                
+                # Publish to CKAN automatically
+                publication = client.publish_to_ckan(
+                    campaign_id=campaign.id,
+                    station_id=station.id,
+                    custom_tags=["automated", "real-time"]
+                )
+                
+                print(f"Pipeline completed: {publication['ckan_url']}")
+                
+    except Exception as e:
+        print(f"Pipeline error: {e}")
+        # Implement alerting/retry logic
 ```
 
 ## Use Cases
@@ -310,33 +405,36 @@ def custom_pipeline():
 - **`list_stations(campaign_id: str, **kwargs)`** - List stations for a campaign
 
 #### Data Upload
-- **`upload_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Upload CSV files
-- **`upload_sensor_measurement_files(campaign_id: str, station_id: str, sensors_file: Union[str, bytes, Tuple], measurements_file: Union[str, bytes, Tuple], chunk_size: int = 1000)`** - Advanced upload with chunking
-- **`upload_chunked_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Chunked upload for large files
+- **`upload_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Upload CSV files with comprehensive response
+- **`publish_to_ckan(campaign_id: str, station_id: str, dataset_metadata: dict = None, resource_metadata: dict = None, custom_tags: list = None, **kwargs)`** - Publish to CKAN with custom metadata
 
 #### Utilities
-- **`validate_files(sensors_file: str, measurements_file: str)`** - Validate CSV files
-- **`get_file_info(file_path: str)`** - Get information about CSV files
-- **`authenticate()`** - Test authentication
+- **`authenticate()`** - Test authentication and return status
 - **`logout()`** - Logout and invalidate tokens
-- **`publish_to_ckan(campaign_id: str, **kwargs)`** - Publish data to CKAN
+- **`list_campaigns(limit: int = 10, **kwargs)`** - List campaigns with pagination
+- **`list_stations(campaign_id: str, **kwargs)`** - List stations for a campaign
+- **`get_campaign(campaign_id: str)`** - Get detailed campaign information
+- **`get_station(station_id: str, campaign_id: str)`** - Get detailed station information
 
 ### Core Classes
 
-- **`UpstreamClient`** - Main SDK interface
-- **`CampaignsIn`** - Campaign creation model
+- **`UpstreamClient`** - Main SDK interface with CKAN integration
+- **`CampaignManager`** - Campaign lifecycle management
+- **`StationManager`** - Station creation and management
+- **`CKANIntegration`** - CKAN portal integration and publishing
+
+### Data Models
+
+- **`CampaignsIn`** - Campaign creation model with validation
 - **`StationCreate`** - Station creation model
+- **`SensorResponse`** - Sensor information with statistics
+- **`GetCampaignResponse`** - Detailed campaign data
 
-### Authentication
+### Exceptions
 
-- **`AuthManager`** - Handle API authentication
-- **`TokenManager`** - Manage token lifecycle
-
-### Utilities
-
-- **`DataValidator`** - Validate CSV formats
-- **`ChunkManager`** - Handle large file uploads
-- **`ErrorHandler`** - Comprehensive error handling
+- **`APIError`** - API-specific errors with detailed messages
+- **`ValidationError`** - Data validation and format errors
+- **`AuthManager`** - Authentication and token management
 
 ## Configuration
 
@@ -360,14 +458,13 @@ upstream:
 
 ckan:
   url: https://ckan.tacc.utexas.edu
-  auto_publish: true
-  default_organization: your-org
+  organization: your-organization
+  api_key: your_ckan_api_key  # Optional for read-only
+  timeout: 30
 
-upload:
-  chunk_size: 10000
-  max_file_size_mb: 50
-  retry_attempts: 3
-  timeout_seconds: 300
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 ```
 
 ## Contributing
