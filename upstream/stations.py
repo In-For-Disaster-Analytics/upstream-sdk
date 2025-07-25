@@ -284,7 +284,7 @@ class StationManager:
         except Exception as e:
             raise APIError(f"Failed to delete station: {e}")
 
-    def export_station_sensors(self, station_id: str, campaign_id: str) -> BinaryIO:
+    def export_station_sensors(self, station_id: int, campaign_id: int) -> BinaryIO:
         """
         Export station sensors as a stream.
         Args:
@@ -300,14 +300,13 @@ class StationManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
+            print(f"Exporting sensors for station {station_id} in campaign {campaign_id}")
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
 
                 response = stations_api.export_sensors_csv_api_v1_campaigns_campaign_id_stations_station_id_sensors_export_get(
-                    campaign_id=campaign_id_int, station_id=station_id_int
+                    campaign_id=campaign_id, station_id=station_id
                 )
 
                 if isinstance(response, str):
