@@ -14,9 +14,8 @@ from upstream_api_client.models import MeasurementIn, MeasurementUpdate
 from upstream import UpstreamClient
 
 # Test configuration
-BASE_URL = "http://localhost:8000"
-CKAN_URL = "http://ckan.tacc.cloud:5000"
-
+BASE_URL = os.environ.get("UPSTREAM_BASE_URL", "http://localhost:8000")
+CKAN_URL = os.environ.get("CKAN_URL", "http://ckan.tacc.cloud:5000")
 USERNAME = os.environ.get("UPSTREAM_USERNAME")
 PASSWORD = os.environ.get("UPSTREAM_PASSWORD")
 
