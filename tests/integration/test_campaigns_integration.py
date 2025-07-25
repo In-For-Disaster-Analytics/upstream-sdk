@@ -56,7 +56,7 @@ def test_campaign_lifecycle():
 
     try:
         # Get
-        fetched = client.campaigns.get(str(created.id))
+        fetched = client.campaigns.get(created.id)
         assert fetched.name == campaign_name
         assert fetched.description == description
         assert fetched.contact_name == contact_name
@@ -68,22 +68,22 @@ def test_campaign_lifecycle():
 
         # Update
         update = CampaignUpdate(description="Updated integration test campaign")
-        client.campaigns.update(str(created.id), update)
+        client.campaigns.update(created.id, update)
 
         # Fetch again
-        fetched_again = client.campaigns.get(str(created.id))
+        fetched_again = client.campaigns.get(created.id)
         assert fetched_again.description == "Updated integration test campaign"
         print(f"Updated campaign: {fetched_again.id}")
 
     finally:
         # Delete
-        deleted = client.campaigns.delete(str(created.id))
+        deleted = client.campaigns.delete(created.id)
         assert deleted is True
         print(f"Deleted campaign: {created.id}")
 
         # Check that the campaign is deleted
         with pytest.raises(APIError):
-            client.campaigns.get(str(created.id))
+            client.campaigns.get(created.id)
 
 
 @pytest.mark.skipif(

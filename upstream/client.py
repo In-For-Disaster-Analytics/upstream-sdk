@@ -158,7 +158,7 @@ class UpstreamClient:
         """
         return self.campaigns.create(campaign_in)
 
-    def get_campaign(self, campaign_id: str) -> GetCampaignResponse:
+    def get_campaign(self, campaign_id: int) -> GetCampaignResponse:
         """Get campaign by ID.
 
         Args:
@@ -181,7 +181,7 @@ class UpstreamClient:
         return self.campaigns.list(**kwargs)
 
     def create_station(
-        self, campaign_id: str, station_create: StationCreate
+        self, campaign_id: int, station_create: StationCreate
     ) -> StationCreateResponse:
         """Create a new monitoring station.
 
@@ -194,7 +194,7 @@ class UpstreamClient:
         """
         return self.stations.create(campaign_id, station_create)
 
-    def get_station(self, station_id: str, campaign_id: str) -> GetStationResponse:
+    def get_station(self, station_id: int, campaign_id: int) -> GetStationResponse:
         """Get station by ID.
 
         Args:
@@ -207,7 +207,7 @@ class UpstreamClient:
         return self.stations.get(station_id, campaign_id)
 
     def list_stations(
-        self, campaign_id: str, **kwargs: Any
+        self, campaign_id: int, **kwargs: Any
     ) -> ListStationsResponsePagination:
         """List stations for a campaign.
 
@@ -222,8 +222,8 @@ class UpstreamClient:
 
     def upload_csv_data(
         self,
-        campaign_id: str,
-        station_id: str,
+        campaign_id: int,
+        station_id: int,
         sensors_file: Union[str, Path],
         measurements_file: Union[str, Path],
         **kwargs: Any,
@@ -250,8 +250,8 @@ class UpstreamClient:
 
     def upload_sensor_measurement_files(
         self,
-        campaign_id: str,
-        station_id: str,
+        campaign_id: int,
+        station_id: int,
         sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
         measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
         chunk_size: int = 1000,
@@ -305,9 +305,9 @@ class UpstreamClient:
 
     def create_measurement(
         self,
-        campaign_id: str,
-        station_id: str,
-        sensor_id: str,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
         measurement_in: MeasurementIn,
     ) -> MeasurementCreateResponse:
         """Create a new measurement.
@@ -326,7 +326,7 @@ class UpstreamClient:
         )
 
     def list_measurements(
-        self, campaign_id: str, station_id: str, sensor_id: str, **kwargs: Any
+        self, campaign_id: int, station_id: int, sensor_id: int, **kwargs: Any
     ) -> ListMeasurementsResponsePagination:
         """List measurements for a sensor.
 
@@ -342,7 +342,7 @@ class UpstreamClient:
         return self.measurements.list(campaign_id, station_id, sensor_id, **kwargs)
 
     def get_measurements_with_confidence_intervals(
-        self, campaign_id: str, station_id: str, sensor_id: str, **kwargs: Any
+        self, campaign_id: int, station_id: int, sensor_id: int, **kwargs: Any
     ) -> List[AggregatedMeasurement]:
         """Get sensor measurements with confidence intervals for visualization.
 
@@ -361,10 +361,10 @@ class UpstreamClient:
 
     def update_measurement(
         self,
-        campaign_id: str,
-        station_id: str,
-        sensor_id: str,
-        measurement_id: str,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
+        measurement_id: int,
         measurement_update: MeasurementUpdate,
     ) -> MeasurementCreateResponse:
         """Update a measurement.
@@ -384,7 +384,7 @@ class UpstreamClient:
         )
 
     def delete_measurements(
-        self, campaign_id: str, station_id: str, sensor_id: str
+        self, campaign_id: int, station_id: int, sensor_id: int
     ) -> bool:
         """Delete all measurements for a sensor.
 
@@ -400,8 +400,8 @@ class UpstreamClient:
 
     def upload_chunked_csv_data(
         self,
-        campaign_id: str,
-        station_id: str,
+        campaign_id: int,
+        station_id: int,
         sensors_file: Union[str, Path],
         measurements_file: Union[str, Path],
         **kwargs: Any,
@@ -453,8 +453,8 @@ class UpstreamClient:
 
     def publish_to_ckan(
         self, 
-        campaign_id: str, 
-        station_id: str,
+        campaign_id: int, 
+        station_id: int,
         dataset_metadata: Optional[Dict[str, Any]] = None,
         resource_metadata: Optional[Dict[str, Any]] = None,
         custom_tags: Optional[List[str]] = None,

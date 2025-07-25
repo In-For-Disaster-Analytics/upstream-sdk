@@ -41,7 +41,7 @@ class SensorManager:
         self.data_uploader = DataUploader(auth_manager)
 
     def get(
-        self, sensor_id: str, station_id: str, campaign_id: str
+        self, sensor_id: int, station_id: int, campaign_id: int
     ) -> GetSensorResponse:
         """
         Get sensor by ID.
@@ -66,25 +66,18 @@ class SensorManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            sensor_id_int = int(sensor_id)
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 sensors_api = SensorsApi(api_client)
 
                 response = sensors_api.get_sensor_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_get(
-                    sensor_id=sensor_id_int,
-                    station_id=station_id_int,
-                    campaign_id=campaign_id_int,
+                    sensor_id=sensor_id,
+                    station_id=station_id,
+                    campaign_id=campaign_id,
                 )
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Sensor not found: {sensor_id}", status_code=404)
@@ -95,8 +88,8 @@ class SensorManager:
 
     def list(
         self,
-        campaign_id: str,
-        station_id: str,
+        campaign_id: int,
+        station_id: int,
         limit: int = 100,
         page: int = 1,
         **kwargs: Any,
@@ -124,15 +117,13 @@ class SensorManager:
             raise ValidationError("Station ID is required", field="station_id")
 
         try:
-            campaign_id_int = int(campaign_id)
-            station_id_int = int(station_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 sensors_api = SensorsApi(api_client)
 
                 response = sensors_api.list_sensors_api_v1_campaigns_campaign_id_stations_station_id_sensors_get(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
                     limit=limit,
                     page=page,
                     **kwargs,
@@ -140,10 +131,6 @@ class SensorManager:
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}"
-            ) from exc
         except ApiException as e:
             raise APIError(f"Failed to list sensors: {e}", status_code=e.status)
         except Exception as e:
@@ -151,9 +138,9 @@ class SensorManager:
 
     def update(
         self,
-        sensor_id: str,
-        station_id: str,
-        campaign_id: str,
+        sensor_id: int,
+        station_id: int,
+        campaign_id: int,
         sensor_update: SensorUpdate,
     ) -> SensorCreateResponse:
         """
@@ -184,26 +171,19 @@ class SensorManager:
             )
 
         try:
-            sensor_id_int = int(sensor_id)
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 sensors_api = SensorsApi(api_client)
 
                 response = sensors_api.partial_update_sensor_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_patch(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
-                    sensor_id=sensor_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
                     sensor_update=sensor_update,
                 )
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Sensor not found: {sensor_id}", status_code=404) from e
@@ -216,7 +196,7 @@ class SensorManager:
         except Exception as e:
             raise APIError(f"Failed to update sensor: {e}") from e
 
-    def delete(self, sensor_id: str, station_id: str, campaign_id: str) -> bool:
+    def delete(self, sensor_id: int, station_id: int, campaign_id: int) -> bool:
         """
         Delete sensor.
 
@@ -240,24 +220,17 @@ class SensorManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            sensor_id_int = int(sensor_id)
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 sensors_api = SensorsApi(api_client)
 
                 sensors_api.delete_sensor_api_v1_campaigns_campaign_id_stations_station_id_sensors_delete(
-                    campaign_id=campaign_id_int, station_id=station_id_int
+                    campaign_id=campaign_id, station_id=station_id
                 )
 
                 logger.info(f"Deleted sensor: {sensor_id}")
                 return True
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: sensor_id={sensor_id}, station_id={station_id}, campaign_id={campaign_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Sensor not found: {sensor_id}", status_code=404)
@@ -268,8 +241,8 @@ class SensorManager:
 
     def upload_csv_files(
         self,
-        campaign_id: str,
-        station_id: str,
+        campaign_id: int,
+        station_id: int,
         sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
         measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
         chunk_size: int = 1000,
@@ -328,13 +301,11 @@ class SensorManager:
             )
 
         try:
-            campaign_id_int = int(campaign_id)
-            station_id_int = int(station_id)
 
             # Use DataUploader for file preparation and validation
             upload_file_sensors, measurements_chunks = self.data_uploader.prepare_files(
-                campaign_id=campaign_id_int,
-                station_id=station_id_int,
+                campaign_id=campaign_id,
+                station_id=station_id,
                 sensors_file=sensors_file,
                 measurements_file=measurements_file,
                 chunk_size=chunk_size,
@@ -351,8 +322,8 @@ class SensorManager:
                     )
 
                     response = upload_api.post_sensor_and_measurement_api_v1_uploadfile_csv_campaign_campaign_id_station_station_id_sensor_post(
-                        campaign_id=campaign_id_int,
-                        station_id=station_id_int,
+                        campaign_id=campaign_id,
+                        station_id=station_id,
                         upload_file_sensors=upload_file_sensors,  # Always upload sensors file
                         upload_file_measurements=chunk,
                     )
@@ -364,10 +335,6 @@ class SensorManager:
                 )
                 return cast(Dict[str, Any], all_responses[-1]) if all_responses else {}
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 422:
                 raise ValidationError(f"File validation failed: {e}") from e

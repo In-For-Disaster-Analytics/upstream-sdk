@@ -56,7 +56,7 @@ def test_measurement_lifecycle(upstream_client):
     )
 
     campaign = upstream_client.create_campaign(campaign_data)
-    campaign_id = str(campaign.id)
+    campaign_id = campaign.id
 
     try:
         # Create a station
@@ -72,7 +72,7 @@ def test_measurement_lifecycle(upstream_client):
         )
 
         station = upstream_client.create_station(campaign_id, station_data)
-        station_id = str(station.id)
+        station_id = station.id
 
         try:
             # Create a sensor first (we need one to create measurements)
@@ -114,7 +114,7 @@ def test_measurement_lifecycle(upstream_client):
                 )
                 assert len(sensors.items) > 0
                 sensor = sensors.items[0]
-                sensor_id = str(sensor.id)
+                sensor_id = sensor.id
 
                 # Test create measurement
                 measurement_data = MeasurementIn(
@@ -163,7 +163,7 @@ def test_measurement_lifecycle(upstream_client):
                 # Test update measurement (if we have a measurement to update)
                 if measurements.items:
                     measurement = measurements.items[0]
-                    measurement_id = str(measurement.id)
+                    measurement_id = measurement.id
 
                     update_data = MeasurementUpdate(
                         measurementvalue=26.0, description="Updated test measurement"
@@ -249,7 +249,7 @@ def test_measurement_filtering(upstream_client):
     )
 
     campaign = upstream_client.create_campaign(campaign_data)
-    campaign_id = str(campaign.id)
+    campaign_id = campaign.id
 
     try:
         # Create a station
@@ -265,7 +265,7 @@ def test_measurement_filtering(upstream_client):
         )
 
         station = upstream_client.create_station(campaign_id, station_data)
-        station_id = str(station.id)
+        station_id = station.id
 
         try:
             # Create a sensor and some measurements
@@ -308,7 +308,7 @@ def test_measurement_filtering(upstream_client):
                 )
                 assert len(sensors.items) > 0
                 sensor = sensors.items[0]
-                sensor_id = str(sensor.id)
+                sensor_id = sensor.id
 
                 # Test filtering by date range
                 start_date = datetime(2024, 1, 15, 10, 0, 0)

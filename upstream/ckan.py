@@ -477,7 +477,7 @@ class CKANIntegration:
 
     def publish_campaign(
         self,
-        campaign_id: str,
+        campaign_id: int,
         campaign_data: GetCampaignResponse,
         station_measurements: BinaryIO,
         station_sensors: BinaryIO,
