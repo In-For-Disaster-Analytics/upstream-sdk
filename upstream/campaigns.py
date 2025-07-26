@@ -75,7 +75,7 @@ class CampaignManager:
         except Exception as e:
             raise APIError(f"Failed to create campaign: {e}")
 
-    def get(self, campaign_id: str) -> GetCampaignResponse:
+    def get(self, campaign_id: int) -> GetCampaignResponse:
         """Get campaign by ID.
 
         Args:
@@ -88,20 +88,16 @@ class CampaignManager:
             APIError: If API request fails or campaign not found
         """
         try:
-            campaign_id_int = int(campaign_id)
-
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
 
                 response: GetCampaignResponse = (
                     campaigns_api.get_campaign_api_v1_campaigns_campaign_id_get(
-                        campaign_id=campaign_id_int
+                        campaign_id=campaign_id
                     )
                 )
                 return response
 
-        except ValueError:
-            raise ValidationError(f"Invalid campaign ID format: {campaign_id}")
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Campaign not found: {campaign_id}", status_code=404)
@@ -144,7 +140,7 @@ class CampaignManager:
             raise APIError(f"Failed to list campaigns: {e}")
 
     def update(
-        self, campaign_id: str, campaign_update: CampaignUpdate
+        self, campaign_id: int, campaign_update: CampaignUpdate
     ) -> CampaignCreateResponse:
         """
         Update an existing campaign.
@@ -166,17 +162,14 @@ class CampaignManager:
                 field="campaign_update",
             )
         try:
-            campaign_id_int = int(campaign_id)
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
                 response: CampaignCreateResponse = (
                     campaigns_api.partial_update_campaign_api_v1_campaigns_campaign_id_patch(
-                        campaign_id=campaign_id_int, campaign_update=campaign_update
+                        campaign_id=campaign_id, campaign_update=campaign_update
                     )
                 )
                 return response
-        except ValueError:
-            raise ValidationError(f"Invalid campaign ID format: {campaign_id}")
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Campaign not found: {campaign_id}", status_code=404)
@@ -187,7 +180,7 @@ class CampaignManager:
         except Exception as e:
             raise APIError(f"Failed to update campaign: {e}")
 
-    def delete(self, campaign_id: str) -> bool:
+    def delete(self, campaign_id: int) -> bool:
         """Delete a campaign.
 
         Args:
@@ -200,20 +193,17 @@ class CampaignManager:
             APIError: If API request fails
         """
         try:
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 campaigns_api = CampaignsApi(api_client)
 
                 campaigns_api.delete_sensor_api_v1_campaigns_campaign_id_delete(
-                    campaign_id=campaign_id_int
+                    campaign_id=campaign_id
                 )
 
                 logger.info(f"Deleted campaign: {campaign_id}")
                 return True
 
-        except ValueError:
-            raise ValidationError(f"Invalid campaign ID format: {campaign_id}")
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Campaign not found: {campaign_id}", status_code=404)

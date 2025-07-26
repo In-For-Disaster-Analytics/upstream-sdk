@@ -41,7 +41,7 @@ class StationManager:
 
     def create(
         self,
-        campaign_id: str,
+        campaign_id: int,
         station_create: StationCreate,
     ) -> StationCreateResponse:
         """
@@ -67,16 +67,13 @@ class StationManager:
             )
 
         try:
-            campaign_id_int = int(campaign_id)
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
                 response = stations_api.create_station_api_v1_campaigns_campaign_id_stations_post(
-                    campaign_id=campaign_id_int, station_create=station_create
+                    campaign_id=campaign_id, station_create=station_create
                 )
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(f"Invalid campaign ID format: {campaign_id}") from exc
         except ApiException as e:
             if e.status == 422:
                 raise ValidationError(f"Station validation failed: {e}") from e
@@ -87,7 +84,7 @@ class StationManager:
         except Exception as e:
             raise APIError(f"Failed to create station: {e}") from e
 
-    def get(self, station_id: str, campaign_id: str) -> GetStationResponse:
+    def get(self, station_id: int, campaign_id: int) -> GetStationResponse:
         """
         Get station by ID.
 
@@ -108,22 +105,16 @@ class StationManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
 
                 response = stations_api.get_station_api_v1_campaigns_campaign_id_stations_station_id_get(
-                    station_id=station_id_int, campaign_id=campaign_id_int
+                    station_id=station_id, campaign_id=campaign_id
                 )
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Station not found: {station_id}", status_code=404)
@@ -134,7 +125,7 @@ class StationManager:
 
     def list(
         self,
-        campaign_id: str,
+        campaign_id: int,
         limit: int = 100,
         page: int = 1,
     ) -> ListStationsResponsePagination:
@@ -157,26 +148,23 @@ class StationManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
 
                 response = stations_api.list_stations_api_v1_campaigns_campaign_id_stations_get(
-                    campaign_id=campaign_id_int, limit=limit, page=page
+                    campaign_id=campaign_id, limit=limit, page=page
                 )
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(f"Invalid campaign ID format: {campaign_id}") from exc
         except ApiException as e:
             raise APIError(f"Failed to list stations: {e}", status_code=e.status)
         except Exception as e:
             raise APIError(f"Failed to list stations: {e}")
 
     def update(
-        self, station_id: str, campaign_id: str, station_update: StationUpdate
+        self, station_id: int, campaign_id: int, station_update: StationUpdate
     ) -> StationCreateResponse:
         """
         Update station.
@@ -204,24 +192,18 @@ class StationManager:
             )
 
         try:
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
 
                 response = stations_api.partial_update_station_api_v1_campaigns_campaign_id_stations_station_id_patch(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
                     station_update=station_update,
                 )
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(
@@ -236,7 +218,7 @@ class StationManager:
         except Exception as e:
             raise APIError(f"Failed to update station: {e}") from e
 
-    def delete(self, station_id: str, campaign_id: str) -> bool:
+    def delete(self, station_id: int, campaign_id: int) -> bool:
         """
         Delete station.
 
@@ -257,8 +239,6 @@ class StationManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
@@ -266,16 +246,12 @@ class StationManager:
                 # Note: The OpenAPI spec shows delete_sensor method, but this appears to be
                 # for deleting stations based on the endpoint path structure
                 stations_api.delete_sensor_api_v1_campaigns_campaign_id_stations_delete(
-                    campaign_id=campaign_id_int
+                    campaign_id=campaign_id
                 )
 
                 logger.info(f"Deleted station: {station_id}")
                 return True
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Station not found: {station_id}", status_code=404)
@@ -284,7 +260,7 @@ class StationManager:
         except Exception as e:
             raise APIError(f"Failed to delete station: {e}")
 
-    def export_station_sensors(self, station_id: str, campaign_id: str) -> BinaryIO:
+    def export_station_sensors(self, station_id: int, campaign_id: int) -> BinaryIO:
         """
         Export station sensors as a stream.
         Args:
@@ -300,14 +276,13 @@ class StationManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
+            print(f"Exporting sensors for station {station_id} in campaign {campaign_id}")
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
 
                 response = stations_api.export_sensors_csv_api_v1_campaigns_campaign_id_stations_station_id_sensors_export_get(
-                    campaign_id=campaign_id_int, station_id=station_id_int
+                    campaign_id=campaign_id, station_id=station_id
                 )
 
                 if isinstance(response, str):
@@ -321,10 +296,6 @@ class StationManager:
                 return io.BytesIO(csv_bytes)
 
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Station not found: {station_id}", status_code=404) from e
@@ -333,7 +304,7 @@ class StationManager:
         except Exception as e:
             raise APIError(f"Failed to export station data: {e}") from e
 
-    def export_station_measurements(self, station_id: str, campaign_id: str) -> BinaryIO:
+    def export_station_measurements(self, station_id: int, campaign_id: int) -> BinaryIO:
         """
         Export station data as a stream.
 
@@ -350,14 +321,12 @@ class StationManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            station_id_int = int(station_id)
-            campaign_id_int = int(campaign_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
 
                 response = stations_api.export_measurements_csv_api_v1_campaigns_campaign_id_stations_station_id_measurements_export_get(
-                    campaign_id=campaign_id_int, station_id=station_id_int
+                    campaign_id=campaign_id, station_id=station_id
                 )
 
                 # Convert response to bytes if it's a string, then create a BytesIO stream
@@ -371,10 +340,6 @@ class StationManager:
 
                 return io.BytesIO(csv_bytes)
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: station_id={station_id}, campaign_id={campaign_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(f"Station not found: {station_id}", status_code=404) from e

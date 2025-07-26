@@ -12,6 +12,8 @@ CKAN_URL = "http://ckan.tacc.cloud:5000"
 
 USERNAME = os.environ.get("UPSTREAM_USERNAME")
 PASSWORD = os.environ.get("UPSTREAM_PASSWORD")
+BASE_URL = os.environ.get("UPSTREAM_BASE_URL", "http://localhost:8000")
+CKAN_URL = os.environ.get("CKAN_URL", "http://ckan.tacc.cloud:5000")
 
 pytestmark = pytest.mark.integration
 
@@ -58,7 +60,7 @@ def test_station_lifecycle():
         )
 
         created_station = client.stations.create(
-            str(created_campaign.id), station_create
+            created_campaign.id, station_create
         )
         assert created_station.id is not None
         print(f"Created station: {created_station.id}")
@@ -66,7 +68,7 @@ def test_station_lifecycle():
         try:
             # Get station
             fetched_station = client.stations.get(
-                str(created_station.id), str(created_campaign.id)
+                created_station.id, created_campaign.id
             )
             assert fetched_station.name == station_name
             assert fetched_station.description == "Integration test station"
@@ -79,12 +81,12 @@ def test_station_lifecycle():
                 description="Updated integration test station"
             )
             client.stations.update(
-                str(created_station.id), str(created_campaign.id), station_update
+                created_station.id, created_campaign.id, station_update
             )
 
             # Fetch again to verify update
             fetched_again = client.stations.get(
-                str(created_station.id), str(created_campaign.id)
+                created_station.id, created_campaign.id
             )
             assert fetched_again.description == "Updated integration test station"
             print(f"Updated station: {fetched_again.id}")
@@ -92,21 +94,21 @@ def test_station_lifecycle():
         finally:
             # Delete station
             deleted = client.stations.delete(
-                str(created_station.id), str(created_campaign.id)
+                created_station.id, created_campaign.id
             )
             assert deleted is True
             print(f"Deleted station: {created_station.id}")
 
             # Check that the station is deleted
             with pytest.raises(APIError):
-                client.stations.get(str(created_station.id), str(created_campaign.id))
+                client.stations.get(created_station.id, created_campaign.id)
 
     finally:
         # Delete campaign
-        deleted_campaign = client.campaigns.delete(str(created_campaign.id))
+        deleted_campaign = client.campaigns.delete(created_campaign.id)
         assert deleted_campaign is True
         print(f"Deleted campaign: {created_campaign.id}")
 
         # Check that the campaign is deleted
         with pytest.raises(APIError):
-            client.campaigns.get(str(created_campaign.id))
+            client.campaigns.get(created_campaign.id)

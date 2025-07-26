@@ -46,15 +46,15 @@ Basic Usage
    client = UpstreamClient(
        username="your_username",
        password="your_password",
-       base_url="https://upstream-dso.tacc.utexas.edu/dev"
+       base_url="https://upstream-dso.tacc.utexas.edu"
    )
 
    # Create campaign and station
    campaign = client.create_campaign("Hurricane Monitoring 2024")
    station = client.create_station(
-       campaign.id, 
-       name="Galveston Pier", 
-       latitude=29.3, 
+       campaign.id,
+       name="Galveston Pier",
+       latitude=29.3,
        longitude=-94.8
    )
 

@@ -19,6 +19,8 @@ CKAN_URL = "http://ckan.tacc.cloud:5000"
 
 USERNAME = os.environ.get("UPSTREAM_USERNAME")
 PASSWORD = os.environ.get("UPSTREAM_PASSWORD")
+BASE_URL = os.environ.get("UPSTREAM_BASE_URL", "http://localhost:8000")
+CKAN_URL = os.environ.get("CKAN_URL", "http://ckan.tacc.cloud:5000")
 
 
 @pytest.fixture
@@ -80,7 +82,7 @@ def test_upload_csv_files(client):
     )
 
     campaign = client.create_campaign(campaign_data)
-    campaign_id = str(campaign.id)
+    campaign_id = campaign.id
 
     try:
         # Create a station
@@ -96,7 +98,7 @@ def test_upload_csv_files(client):
         )
 
         station = client.create_station(campaign_id, station_data)
-        station_id = str(station.id)
+        station_id = station.id
 
         try:
             # Create temporary CSV files for testing using the correct format

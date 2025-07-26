@@ -18,15 +18,16 @@ from .exceptions import APIError
 logger = logging.getLogger(__name__)
 
 
-def _serialize_for_json(value: Any) -> str:
+def _serialize_for_json(value: Any, max_length: int = 30000) -> str:
     """
-    Convert a value to a JSON-serializable string, with special handling for dates.
+    Convert a value to a JSON-serializable string, with special handling for dates and size limits.
 
     Args:
         value: The value to serialize
+        max_length: Maximum allowed length for the serialized string (default: 30000 to stay under Solr's 32766 limit)
 
     Returns:
-        JSON-serializable string representation
+        JSON-serializable string representation, truncated if necessary
     """
     if value is None:
         return ""
@@ -36,11 +37,24 @@ def _serialize_for_json(value: Any) -> str:
         return value.strftime('%Y-%m-%dT%H:%M:%SZ')
     elif isinstance(value, (dict, list)):
         try:
-            return json.dumps(value, default=str)
+            serialized = json.dumps(value, default=str)
+            if len(serialized) > max_length:
+                # Truncate large objects to prevent Solr field size errors
+                logger.warning(f"Truncating large value (length: {len(serialized)}) to fit Solr field size limit")
+                return serialized[:max_length] + "... [TRUNCATED]"
+            return serialized
         except (TypeError, ValueError):
-            return str(value)
+            result = str(value)
+            if len(result) > max_length:
+                logger.warning(f"Truncating large string value (length: {len(result)}) to fit Solr field size limit")
+                return result[:max_length] + "... [TRUNCATED]"
+            return result
     else:
-        return str(value)
+        result = str(value)
+        if len(result) > max_length:
+            logger.warning(f"Truncating large string value (length: {len(result)}) to fit Solr field size limit")
+            return result[:max_length] + "... [TRUNCATED]"
+        return result
 
 
 
@@ -477,7 +491,7 @@ class CKANIntegration:
 
     def publish_campaign(
         self,
-        campaign_id: str,
+        campaign_id: int,
         campaign_data: GetCampaignResponse,
         station_measurements: BinaryIO,
         station_sensors: BinaryIO,
@@ -520,12 +534,11 @@ class CKANIntegration:
         if custom_tags:
             base_tags.extend(custom_tags)
 
-        # Prepare base dataset extras
+        # Prepare base dataset extras (avoid storing large campaign object to prevent Solr field size limits)
         base_extras = [
             {"key": "source", "value": "Upstream Platform"},
             {"key": "data_type", "value": "environmental_sensor_data"},
-            {"key": "campaign", "value": _serialize_for_json(campaign_data.to_dict())},
-            {"key": "campaign_id", "value": campaign_id},
+            {"key": "campaign_id", "value": str(campaign_id)},
             {"key": "campaign_name", "value": campaign_data.name or ""},
             {"key": "campaign_description", "value": campaign_data.description or ""},
             {"key": "campaign_contact_name", "value": campaign_data.contact_name or ""},
@@ -566,7 +579,7 @@ class CKANIntegration:
             resources_created = []
 
 
-            # Prepare base station metadata
+            # Prepare base station metadata (avoid storing large sensor objects to prevent Solr field size limits)
             base_station_metadata = [
                 {"key": "station_id", "value": str(station_data.id)},
                 {"key": "station_name", "value": station_data.name or ""},
@@ -575,12 +588,10 @@ class CKANIntegration:
                 {"key": "station_contact_email", "value": station_data.contact_email or ""},
                 {"key": "station_active", "value": str(station_data.active)},
                 {"key": "station_geometry", "value": _serialize_for_json(station_data.geometry)},
-                {"key": "station_sensors", "value": _serialize_for_json([sensor.to_dict() for sensor in station_data.sensors] if station_data.sensors else [])},
                 {"key": "station_sensors_count", "value": str(len(station_data.sensors) if station_data.sensors else 0)},
-                {"key": "station_sensors_aliases", "value": _serialize_for_json([sensor.alias for sensor in station_data.sensors] if station_data.sensors else [])},
-                {"key": "station_sensors_units", "value": _serialize_for_json([sensor.units for sensor in station_data.sensors] if station_data.sensors else [])},
-                {"key": "station_sensors_descriptions", "value": _serialize_for_json([sensor.description for sensor in station_data.sensors] if station_data.sensors else [])},
-                {"key": "station_sensors_variablename", "value": _serialize_for_json([sensor.variablename for sensor in station_data.sensors] if station_data.sensors else [])},
+                # {"key": "station_sensors_aliases", "value": _serialize_for_json([sensor.alias for sensor in station_data.sensors] if station_data.sensors else [])},
+                # {"key": "station_sensors_units", "value": _serialize_for_json([sensor.units for sensor in station_data.sensors] if station_data.sensors else [])},
+                # {"key": "station_sensors_variablename", "value": _serialize_for_json([sensor.variablename for sensor in station_data.sensors] if station_data.sensors else [])},
             ]
 
             # Add custom resource metadata

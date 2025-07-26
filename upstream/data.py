@@ -191,8 +191,8 @@ class DataUploader:
 
     def upload_csv_data(
         self,
-        campaign_id: str,
-        station_id: str,
+        campaign_id: int,
+        station_id: int,
         sensors_file: Union[str, Path],
         measurements_file: Union[str, Path],
         validate_data: bool = True,
@@ -240,8 +240,6 @@ class DataUploader:
 
         # Upload files using OpenAPI client
         try:
-            campaign_id_int = int(campaign_id)
-            station_id_int = int(station_id)
 
             # Read files as bytes for upload
             with open(sensors_file, "rb") as sf, open(measurements_file, "rb") as mf:
@@ -252,8 +250,8 @@ class DataUploader:
                 upload_api = UploadfileCsvApi(api_client)
 
                 response = upload_api.post_sensor_and_measurement_api_v1_uploadfile_csv_campaign_campaign_id_station_station_id_sensor_post(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
                     upload_file_sensors=sensors_data,
                     upload_file_measurements=measurements_data,
                 )
@@ -272,10 +270,6 @@ class DataUploader:
                     "message": "Data uploaded successfully",
                 }
 
-        except ValueError:
-            raise ValidationError(
-                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}"
-            )
         except ApiException as e:
             if e.status == 422:
                 raise ValidationError(f"Data validation failed: {e}")
@@ -287,8 +281,8 @@ class DataUploader:
 
     def upload_chunked_csv_data(
         self,
-        campaign_id: str,
-        station_id: str,
+        campaign_id: int,
+        station_id: int,
         sensors_file: Union[str, Path],
         measurements_file: Union[str, Path],
         validate_data: bool = True,

@@ -41,9 +41,9 @@ class MeasurementManager:
 
     def create(
         self,
-        campaign_id: str,
-        station_id: str,
-        sensor_id: str,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
         measurement_in: MeasurementIn,
     ) -> MeasurementCreateResponse:
         """
@@ -75,24 +75,16 @@ class MeasurementManager:
             )
 
         try:
-            campaign_id_int = int(campaign_id)
-            station_id_int = int(station_id)
-            sensor_id_int = int(sensor_id)
-
             with self.auth_manager.get_api_client() as api_client:
                 measurements_api = MeasurementsApi(api_client)
                 response = measurements_api.create_measurement_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_measurements_post(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
-                    sensor_id=sensor_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
                     measurement_in=measurement_in,
                 )
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 422:
                 raise ValidationError(f"Measurement validation failed: {e}") from e
@@ -105,9 +97,9 @@ class MeasurementManager:
 
     def list(
         self,
-        campaign_id: str,
-        station_id: str,
-        sensor_id: str,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
         start_date: Optional[datetime] = None,
         end_date: Optional[datetime] = None,
         min_measurement_value: Optional[float] = None,
@@ -146,17 +138,14 @@ class MeasurementManager:
             raise ValidationError("Sensor ID is required", field="sensor_id")
 
         try:
-            campaign_id_int = int(campaign_id)
-            station_id_int = int(station_id)
-            sensor_id_int = int(sensor_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 measurements_api = MeasurementsApi(api_client)
 
                 response = measurements_api.get_sensor_measurements_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_measurements_get(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
-                    sensor_id=sensor_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
                     start_date=start_date,
                     end_date=end_date,
                     min_measurement_value=min_measurement_value,
@@ -168,10 +157,6 @@ class MeasurementManager:
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}"
-            ) from exc
         except ApiException as e:
             raise APIError(f"Failed to list measurements: {e}", status_code=e.status)
         except Exception as e:
@@ -179,9 +164,9 @@ class MeasurementManager:
 
     def get_with_confidence_intervals(
         self,
-        campaign_id: str,
-        station_id: str,
-        sensor_id: str,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
         interval: Optional[str] = None,
         interval_value: Optional[int] = None,
         start_date: Optional[datetime] = None,
@@ -218,17 +203,14 @@ class MeasurementManager:
             raise ValidationError("Sensor ID is required", field="sensor_id")
 
         try:
-            campaign_id_int = int(campaign_id)
-            station_id_int = int(station_id)
-            sensor_id_int = int(sensor_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 measurements_api = MeasurementsApi(api_client)
 
                 response = measurements_api.get_measurements_with_confidence_intervals_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_measurements_confidence_intervals_get(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
-                    sensor_id=sensor_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
                     interval=interval,
                     interval_value=interval_value,
                     start_date=start_date,
@@ -239,10 +221,6 @@ class MeasurementManager:
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}"
-            ) from exc
         except ApiException as e:
             raise APIError(
                 f"Failed to get measurements with confidence intervals: {e}",
@@ -253,10 +231,10 @@ class MeasurementManager:
 
     def update(
         self,
-        campaign_id: str,
-        station_id: str,
-        sensor_id: str,
-        measurement_id: str,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
+        measurement_id: int,
         measurement_update: MeasurementUpdate,
     ) -> MeasurementCreateResponse:
         """
@@ -291,28 +269,20 @@ class MeasurementManager:
             )
 
         try:
-            campaign_id_int = int(campaign_id)
-            station_id_int = int(station_id)
-            sensor_id_int = int(sensor_id)
-            measurement_id_int = int(measurement_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 measurements_api = MeasurementsApi(api_client)
 
                 response = measurements_api.partial_update_sensor_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_measurements_measurement_id_patch(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
-                    sensor_id=sensor_id_int,
-                    measurement_id=measurement_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
+                    measurement_id=measurement_id,
                     measurement_update=measurement_update,
                 )
 
                 return response
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}, measurement_id={measurement_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(
@@ -329,9 +299,9 @@ class MeasurementManager:
 
     def delete(
         self,
-        campaign_id: str,
-        station_id: str,
-        sensor_id: str,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
     ) -> bool:
         """
         Delete all measurements for a sensor.
@@ -356,26 +326,19 @@ class MeasurementManager:
             raise ValidationError("Sensor ID is required", field="sensor_id")
 
         try:
-            campaign_id_int = int(campaign_id)
-            station_id_int = int(station_id)
-            sensor_id_int = int(sensor_id)
 
             with self.auth_manager.get_api_client() as api_client:
                 measurements_api = MeasurementsApi(api_client)
 
                 measurements_api.delete_sensor_measurements_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_measurements_delete(
-                    campaign_id=campaign_id_int,
-                    station_id=station_id_int,
-                    sensor_id=sensor_id_int,
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
                 )
 
                 logger.info(f"Deleted measurements for sensor: {sensor_id}")
                 return True
 
-        except ValueError as exc:
-            raise ValidationError(
-                f"Invalid ID format: campaign_id={campaign_id}, station_id={station_id}, sensor_id={sensor_id}"
-            ) from exc
         except ApiException as e:
             if e.status == 404:
                 raise APIError(

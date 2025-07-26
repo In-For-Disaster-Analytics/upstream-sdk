@@ -14,11 +14,10 @@ from upstream import UpstreamClient
 from upstream.exceptions import APIError, ValidationError
 
 # Integration test configuration
-BASE_URL = "http://localhost:8000"
-CKAN_URL = "http://ckan.tacc.cloud:5000"
-
 USERNAME = os.environ.get("UPSTREAM_USERNAME")
 PASSWORD = os.environ.get("UPSTREAM_PASSWORD")
+BASE_URL = os.environ.get("UPSTREAM_BASE_URL", "http://localhost:8000")
+CKAN_URL = os.environ.get("CKAN_URL", "http://ckan.tacc.cloud:5000")
 
 
 @pytest.fixture
