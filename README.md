@@ -31,7 +31,7 @@ from datetime import datetime, timedelta
 client = UpstreamClient(
     username="researcher",
     password="password",
-    base_url="https://upstream-dso.tacc.utexas.edu/dev",
+    base_url="https://upstream-dso.tacc.utexas.edu",
     ckan_url="https://ckan.tacc.utexas.edu",
     ckan_organization="your-org"
 )
@@ -96,21 +96,21 @@ Seamless data publishing to CKAN portals:
 publication_result = client.publish_to_ckan(
     campaign_id=campaign_id,
     station_id=station_id,
-    
+
     # Custom dataset metadata
     dataset_metadata={
         "project_name": "Air Quality Study",
         "funding_agency": "EPA",
         "grant_number": "EPA-2024-001"
     },
-    
+
     # Custom resource metadata
     resource_metadata={
         "calibration_date": "2024-01-15",
         "quality_control": "Automated + Manual Review",
         "uncertainty_bounds": "±2% of reading"
     },
-    
+
     # Custom tags for discoverability
     custom_tags=["air-quality", "epa-funded", "quality-controlled"]
 )
@@ -135,16 +135,20 @@ pip install upstream-sdk[dev]
 The SDK includes comprehensive demo notebooks that showcase all features:
 
 ### 📓 **UpstreamSDK_Core_Demo.ipynb**
+
 Interactive demonstration of core functionality:
+
 - Authentication and client setup
-- Campaign creation and management  
+- Campaign creation and management
 - Station setup with sensor configuration
 - CSV data upload with comprehensive validation
 - Sensor statistics and analytics
 - Error handling and best practices
 
 ### 📓 **UpstreamSDK_CKAN_Demo.ipynb**
+
 Complete CKAN integration workflow:
+
 - CKAN portal setup and authentication
 - Data export and preparation for publishing
 - Dataset creation with rich metadata
@@ -165,7 +169,7 @@ from upstream.client import UpstreamClient
 client = UpstreamClient(
     username="your_username",
     password="your_password",
-    base_url="https://upstream-dso.tacc.utexas.edu/dev",
+    base_url="https://upstream-dso.tacc.utexas.edu",
     ckan_url="https://ckan.tacc.utexas.edu",
     ckan_organization="your-org"
 )
@@ -216,7 +220,7 @@ station_data = StationCreate(
     start_date=datetime.now()
 )
 station = station_manager.create(
-    campaign_id=str(campaign.id),
+    campaign_id=campaign.id,
     station_create=station_data
 )
 print(f"Station created with ID: {station.id}")
@@ -292,14 +296,14 @@ try:
     # Initialize managers
     campaign_manager = CampaignManager(client.auth_manager)
     station_manager = StationManager(client.auth_manager)
-    
+
     # Create campaign with validation
     campaign = campaign_manager.create(campaign_data)
     station = station_manager.create(
         campaign_id=str(campaign.id),
         station_create=station_data
     )
-    
+
 except ValidationError as e:
     print(f"Data validation failed: {e}")
 except APIError as e:
@@ -338,10 +342,10 @@ def automated_monitoring_pipeline():
         if campaigns.items:
             campaign = campaigns.items[0]
             stations = client.list_stations(campaign_id=str(campaign.id))
-            
+
             if stations.items:
                 station = stations.items[0]
-                
+
                 # Upload new sensor data
                 result = client.upload_csv_data(
                     campaign_id=campaign.id,
@@ -349,16 +353,16 @@ def automated_monitoring_pipeline():
                     sensors_file="latest_sensors.csv",
                     measurements_file="latest_measurements.csv"
                 )
-                
+
                 # Publish to CKAN automatically
                 publication = client.publish_to_ckan(
                     campaign_id=campaign.id,
                     station_id=station.id,
                     custom_tags=["automated", "real-time"]
                 )
-                
+
                 print(f"Pipeline completed: {publication['ckan_url']}")
-                
+
     except Exception as e:
         print(f"Pipeline error: {e}")
         # Implement alerting/retry logic
@@ -395,24 +399,28 @@ def automated_monitoring_pipeline():
 ### UpstreamClient Methods
 
 #### Campaign Management
+
 - **`create_campaign(campaign_in: CampaignsIn)`** - Create a new monitoring campaign
 - **`get_campaign(campaign_id: str)`** - Get campaign by ID
-- **`list_campaigns(**kwargs)`** - List all campaigns
+- **`list_campaigns(**kwargs)`\*\* - List all campaigns
 
 #### Station Management
+
 - **`create_station(campaign_id: str, station_create: StationCreate)`** - Create a new monitoring station
 - **`get_station(station_id: str, campaign_id: str)`** - Get station by ID
-- **`list_stations(campaign_id: str, **kwargs)`** - List stations for a campaign
+- **`list_stations(campaign_id: str, **kwargs)`\*\* - List stations for a campaign
 
 #### Data Upload
+
 - **`upload_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Upload CSV files with comprehensive response
-- **`publish_to_ckan(campaign_id: str, station_id: str, dataset_metadata: dict = None, resource_metadata: dict = None, custom_tags: list = None, **kwargs)`** - Publish to CKAN with custom metadata
+- **`publish_to_ckan(campaign_id: str, station_id: str, dataset_metadata: dict = None, resource_metadata: dict = None, custom_tags: list = None, **kwargs)`\*\* - Publish to CKAN with custom metadata
 
 #### Utilities
+
 - **`authenticate()`** - Test authentication and return status
 - **`logout()`** - Logout and invalidate tokens
-- **`list_campaigns(limit: int = 10, **kwargs)`** - List campaigns with pagination
-- **`list_stations(campaign_id: str, **kwargs)`** - List stations for a campaign
+- **`list_campaigns(limit: int = 10, **kwargs)`\*\* - List campaigns with pagination
+- **`list_stations(campaign_id: str, **kwargs)`\*\* - List stations for a campaign
 - **`get_campaign(campaign_id: str)`** - Get detailed campaign information
 - **`get_station(station_id: str, campaign_id: str)`** - Get detailed station information
 
@@ -443,7 +451,7 @@ def automated_monitoring_pipeline():
 ```bash
 UPSTREAM_USERNAME=your_username
 UPSTREAM_PASSWORD=your_password
-UPSTREAM_BASE_URL=https://upstream-dso.tacc.utexas.edu/dev
+UPSTREAM_BASE_URL=https://upstream-dso.tacc.utexas.edu
 CKAN_URL=https://ckan.tacc.utexas.edu
 ```
 
@@ -454,17 +462,17 @@ CKAN_URL=https://ckan.tacc.utexas.edu
 upstream:
   username: your_username
   password: your_password
-  base_url: https://upstream-dso.tacc.utexas.edu/dev
+  base_url: https://upstream-dso.tacc.utexas.edu
 
 ckan:
   url: https://ckan.tacc.utexas.edu
   organization: your-organization
-  api_key: your_ckan_api_key  # Optional for read-only
+  api_key: your_ckan_api_key # Optional for read-only
   timeout: 30
 
 logging:
   level: INFO
-  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  format: '%(asctime)s - %(name)s - %(levelname)s - %(message)s'
 ```
 
 ## Contributing
