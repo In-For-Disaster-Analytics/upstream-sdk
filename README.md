@@ -2,6 +2,8 @@
 
 A Python SDK for seamless integration with the Upstream environmental sensor data platform and CKAN data portal.
 
+> **Note**: This SDK is built on top of the [`upstream-python-api-client`](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client) - an OpenAPI-generated Python client. You can extend the SDK by using the underlying API client directly for advanced use cases or accessing endpoints not yet covered by the high-level SDK interface.
+
 ## Overview
 
 The Upstream Python SDK provides a standardized, production-ready toolkit for environmental researchers and organizations to:
@@ -408,6 +410,51 @@ def automated_monitoring_pipeline():
         # Implement alerting/retry logic
 ```
 
+### Extending the SDK with the Underlying API Client
+
+The Upstream SDK provides high-level convenience methods, but you can access the full OpenAPI-generated client for advanced use cases.
+
+**📖 Complete API Documentation:** [Documentation for API Endpoints](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client/tree/main?tab=readme-ov-file#documentation-for-api-endpoints)
+
+```python
+from upstream.client import UpstreamClient
+from upstream_api_client.api.campaigns_api import CampaignsApi
+from upstream_api_client.api.measurements_api import MeasurementsApi
+
+# Initialize the SDK client
+client = UpstreamClient(username="user", password="pass", base_url="https://upstream-dso.tacc.utexas.edu")
+client.authenticate()
+
+# Access the underlying API client for advanced operations
+api_client = client.auth_manager.api_client
+
+# Use the generated API classes directly
+campaigns_api = CampaignsApi(api_client)
+measurements_api = MeasurementsApi(api_client)
+
+# Example: Use advanced filtering not yet available in the SDK
+response = measurements_api.get_measurements_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_measurements_get(
+    campaign_id=campaign_id,
+    station_id=station_id,
+    sensor_id=sensor_id,
+    min_measurement_value=20.0,
+    max_measurement_value=30.0,
+    start_date="2024-01-01T00:00:00",
+    end_date="2024-12-31T23:59:59",
+    limit=1000,
+    page=1
+)
+
+print(f"Advanced filtered measurements: {len(response.items)}")
+```
+
+This approach allows you to:
+- Access all available API endpoints
+- Use advanced filtering and pagination options
+- Handle complex data transformations
+- Implement custom error handling
+- Access response metadata and headers
+
 ## Use Cases
 
 ### 🌪️ **Disaster Response Networks**
@@ -482,13 +529,28 @@ def automated_monitoring_pipeline():
 
 ### Data Models
 
-- **`CampaignsIn`** - Campaign creation model with validation
-- **`StationCreate`** - Station creation model
-- **`SensorResponse`** - Sensor information with statistics
-- **`GetCampaignResponse`** - Detailed campaign data
-- **`MeasurementIn`** - Individual measurement creation model
-- **`MeasurementUpdate`** - Measurement update model
-- **`AggregatedMeasurement`** - Aggregated measurement data with confidence intervals
+The SDK uses Pydantic models from the [`upstream-python-api-client`](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client) for type-safe data handling and validation.
+
+**📖 Complete Model Documentation:** [Documentation for Models](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client/tree/main?tab=readme-ov-file#documentation-for-models)
+
+**Key Models:**
+- **`CampaignsIn`** - [Campaign creation model](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client/blob/main/docs/CampaignsIn.md)
+- **`StationCreate`** - [Station configuration model](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client/blob/main/docs/StationCreate.md)
+- **`MeasurementIn`** - [Individual measurement model](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client/blob/main/docs/MeasurementIn.md)
+- **`AggregatedMeasurement`** - [Statistical measurement aggregation model](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client/blob/main/docs/AggregatedMeasurement.md)
+
+**Usage Example:**
+```python
+from upstream_api_client.models import CampaignsIn, StationCreate, MeasurementIn
+from datetime import datetime, timedelta
+
+# See official documentation for complete field specifications
+campaign = CampaignsIn(
+    name="Environmental Monitoring 2024",
+    allocation="TACC-allocation-id",
+    # ... see CampaignsIn.md for all fields
+)
+```
 
 ### Exceptions
 
