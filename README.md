@@ -416,6 +416,10 @@ The Upstream SDK provides high-level convenience methods, but you can access the
 
 **📖 Complete API Documentation:** [Documentation for API Endpoints](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client/tree/main?tab=readme-ov-file#documentation-for-api-endpoints)
 
+The SDK uses Pydantic models from the [`upstream-python-api-client`](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client) for type-safe data handling and validation.
+
+**📖 Complete Model Documentation:** [Documentation for Models](https://github.com/In-For-Disaster-Analytics/upstream-python-api-client/tree/main?tab=readme-ov-file#documentation-for-models)
+
 ```python
 from upstream.client import UpstreamClient
 from upstream_api_client.api.campaigns_api import CampaignsApi
@@ -560,15 +564,6 @@ campaign = CampaignsIn(
 
 ## Configuration
 
-### Environment Variables
-
-```bash
-UPSTREAM_USERNAME=your_username
-UPSTREAM_PASSWORD=your_password
-UPSTREAM_BASE_URL=https://upstream-dso.tacc.utexas.edu
-CKAN_URL=https://ckan.tacc.utexas.edu
-```
-
 ### Configuration File
 
 ```yaml
@@ -618,7 +613,6 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 - **Documentation**: [https://upstream-python-sdk.readthedocs.io](https://upstream-python-sdk.readthedocs.io)
 - **Issues**: [GitHub Issues](https://github.com/In-For-Disaster-Analytics/upstream-python-sdk/issues)
-- **Discussions**: [GitHub Discussions](https://github.com/In-For-Disaster-Analytics/upstream-python-sdk/discussions)
 
 ## Citation
 
@@ -637,7 +631,6 @@ If you use this SDK in your research, please cite:
 ## Related Projects
 
 - **[Upstream Platform](https://github.com/In-For-Disaster-Analytics/upstream-docker)** - Main platform repository
-- **[Upstream Examples](https://github.com/In-For-Disaster-Analytics/upstream-examples)** - Example workflows and tutorials
 - **[CKAN Integration](https://ckan.tacc.utexas.edu)** - Data portal for published datasets
 
 ---
