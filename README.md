@@ -455,6 +455,14 @@ def automated_monitoring_pipeline():
 - **`upload_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Upload CSV files with comprehensive response
 - **`publish_to_ckan(campaign_id: str, station_id: str, dataset_metadata: dict = None, resource_metadata: dict = None, custom_tags: list = None, **kwargs)`\*\* - Publish to CKAN with custom metadata
 
+#### Measurement Management
+
+- **`measurements.create(campaign_id: int, station_id: int, sensor_id: int, measurement_in: MeasurementIn)`** - Create a new measurement
+- **`measurements.list(campaign_id: int, station_id: int, sensor_id: int, **filters)`** - List measurements with filtering options
+- **`measurements.get_with_confidence_intervals(campaign_id: int, station_id: int, sensor_id: int, **params)`** - Get aggregated measurements with confidence intervals for visualization
+- **`measurements.update(campaign_id: int, station_id: int, sensor_id: int, measurement_id: int, measurement_update: MeasurementUpdate)`** - Update a specific measurement
+- **`measurements.delete(campaign_id: int, station_id: int, sensor_id: int)`** - Delete all measurements for a sensor
+
 #### Utilities
 
 - **`authenticate()`** - Test authentication and return status
@@ -469,6 +477,7 @@ def automated_monitoring_pipeline():
 - **`UpstreamClient`** - Main SDK interface with CKAN integration
 - **`CampaignManager`** - Campaign lifecycle management
 - **`StationManager`** - Station creation and management
+- **`MeasurementManager`** - Individual measurement data operations
 - **`CKANIntegration`** - CKAN portal integration and publishing
 
 ### Data Models
@@ -477,6 +486,9 @@ def automated_monitoring_pipeline():
 - **`StationCreate`** - Station creation model
 - **`SensorResponse`** - Sensor information with statistics
 - **`GetCampaignResponse`** - Detailed campaign data
+- **`MeasurementIn`** - Individual measurement creation model
+- **`MeasurementUpdate`** - Measurement update model
+- **`AggregatedMeasurement`** - Aggregated measurement data with confidence intervals
 
 ### Exceptions
 
