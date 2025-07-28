@@ -285,6 +285,46 @@ for sensor in sensors.items:
     print(f"  Updated: {stats.stats_last_updated}")
 ```
 
+### Measurement Data Management
+
+```python
+from upstream.measurements import MeasurementManager
+from upstream_api_client.models import MeasurementIn
+from datetime import datetime
+
+# Initialize measurement manager
+measurement_manager = MeasurementManager(client.auth_manager)
+
+# List measurements for a specific sensor
+measurements = measurement_manager.list(
+    campaign_id=campaign_id,
+    station_id=station_id,
+    sensor_id=sensor_id,
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 12, 31),
+    limit=100
+)
+
+print(f"Found {len(measurements.items)} measurements")
+
+# Get measurements with confidence intervals for visualization
+aggregated_data = measurement_manager.get_with_confidence_intervals(
+    campaign_id=campaign_id,
+    station_id=station_id,
+    sensor_id=sensor_id,
+    interval="hour",
+    interval_value=1,
+    start_date=datetime(2024, 1, 1),
+    end_date=datetime(2024, 1, 2)
+)
+
+for measurement in aggregated_data:
+    print(f"Time: {measurement.time_bucket}")
+    print(f"  Average: {measurement.avg_value}")
+    print(f"  Min/Max: {measurement.min_value} - {measurement.max_value}")
+    print(f"  Confidence Interval: {measurement.confidence_interval_lower} - {measurement.confidence_interval_upper}")
+```
+
 ### Error Handling and Validation
 
 ```python
