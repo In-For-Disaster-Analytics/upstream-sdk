@@ -359,3 +359,120 @@ def test_upload_csv_files_bytes_input(client):
                 print(f"Deleted campaign: {campaign_id}")
             except Exception as e:
                 print(f"Failed to delete campaign: {e}")
+
+
+def test_upload_precipitation_data_validation_error(client):
+    """Test that uploading invalid sensor data returns proper validation error."""
+    campaign_id = None
+    station_id = None
+
+    try:
+        # Create campaign
+        campaign_data = CampaignsIn(
+            name="Test Campaign for Precipitation Data",
+            description="Test campaign for precipitation sensor data upload",
+            contact_name="Test User",
+            contact_email="test@example.com",
+            allocation="TACC",
+            start_date=datetime.now(),
+            end_date=datetime.now() + timedelta(days=30),
+        )
+        campaign = client.campaigns.create(campaign_data)
+        campaign_id = campaign.id
+        print(f"Created campaign: {campaign_id}")
+
+        # Create station
+        station_data = StationCreate(
+            name="Test Station for Precipitation",
+            description="Weather station for precipitation monitoring",
+            contact_name="Test User",
+            contact_email="test@example.com",
+            start_date=datetime.now(),
+            active=True,
+        )
+        station = client.stations.create(campaign_id, station_data)
+        station_id = station.id
+        print(f"Created station: {station_id}")
+
+        # Create sensors CSV file with precipitation sensor
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False, encoding="utf-8"
+        ) as sensors_file:
+            sensors_file.write(
+                "alias,variablename,postprocess,units,datatype\n"
+            )
+            sensors_file.write(
+                "precipitation,precipitation,,mm,float,\n"
+            )
+            sensors_file_path = sensors_file.name
+
+        # Create measurements CSV file with precipitation data and ISO timestamps
+        with tempfile.NamedTemporaryFile(
+            mode="w", suffix=".csv", delete=False, encoding="utf-8"
+        ) as measurements_file:
+            # Write header with precipitation sensor alias
+            measurements_file.write(
+                "Precipitation_mm,collectiontime,Lat_deg,Lon_deg\n"
+            )
+
+            # Write precipitation data with Alaska coordinates and ISO timestamps
+            measurements_file.write(
+                "0.00,2025-08-01T20:45:00+00:00,60.793241544286595,-161.78002508639943\n"
+            )
+            measurements_file.write(
+                "0.00,2025-08-01T20:46:00+00:00,60.793241544286595,-161.78002508639943\n"
+            )
+
+            # Add some additional test data with varying precipitation
+            measurements_file.write(
+                "0.50,2025-08-01T20:47:00+00:00,60.793241544286595,-161.78002508639943\n"
+            )
+            measurements_file.write(
+                "1.25,2025-08-01T20:48:00+00:00,60.793241544286595,-161.78002508639943\n"
+            )
+            measurements_file_path = measurements_file.name
+
+        try:
+            # Upload precipitation data with invalid postprocess field (empty string)
+            # This should raise a ValidationError or APIError with 400 status
+            with pytest.raises((ValidationError, APIError)) as exc_info:
+                response = client.sensors.upload_csv_files(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensors_file=sensors_file_path,
+                    measurements_file=measurements_file_path,
+                )
+
+            # Verify the error details
+            error = exc_info.value
+            print(f"Caught expected error: {error}")
+
+            # Check that it's the expected validation error for postprocess field
+            error_str = str(error).lower()
+            assert "validation" in error_str or "400" in error_str or "bad request" in error_str
+            assert "postprocess" in error_str
+            assert "bool" in error_str or "boolean" in error_str
+
+            print("✅ Validation error correctly caught and verified")
+
+        finally:
+            # Clean up temporary files
+            Path(sensors_file_path).unlink(missing_ok=True)
+            Path(measurements_file_path).unlink(missing_ok=True)
+
+    finally:
+        # Clean up station
+        if station_id:
+            try:
+                client.stations.delete(station_id, campaign_id)
+                print(f"Deleted station: {station_id}")
+            except Exception as e:
+                print(f"Failed to delete station: {e}")
+
+        # Clean up campaign
+        if campaign_id:
+            try:
+                client.campaigns.delete(campaign_id)
+                print(f"Deleted campaign: {campaign_id}")
+            except Exception as e:
+                print(f"Failed to delete campaign: {e}")
