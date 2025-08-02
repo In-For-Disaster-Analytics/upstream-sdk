@@ -14,6 +14,8 @@ from upstream_api_client.models import (
     ListSensorsResponsePagination,
     SensorCreateResponse,
     SensorUpdate,
+    ForceUpdateSensorStatisticsResponse,
+    UpdateSensorStatisticsResponse,
 )
 from upstream_api_client.rest import ApiException
 
@@ -344,3 +346,103 @@ class SensorManager:
                 ) from e
         except Exception as e:
             raise APIError(f"Failed to upload CSV files: {e}") from e
+
+    def force_update_statistics(
+        self, campaign_id: int, station_id: int
+    ) -> ForceUpdateSensorStatisticsResponse:
+        """
+        Force update statistics for all sensors in a station.
+
+        This method triggers a recalculation of statistics for all sensors
+        associated with the specified station. Statistics include min/max values,
+        averages, standard deviation, percentiles, and measurement counts.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+
+        Returns:
+            Response containing update status and processing information
+
+        Raises:
+            ValidationError: If IDs are invalid
+            APIError: If statistics update fails
+        """
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+
+        try:
+            with self.auth_manager.get_api_client() as api_client:
+                sensors_api = SensorsApi(api_client)
+
+                response = sensors_api.force_update_sensor_statistics_api_v1_campaigns_campaign_id_stations_station_id_sensors_statistics_post(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                )
+
+                logger.info(f"Force updated statistics for all sensors in station {station_id}, campaign {campaign_id}")
+                return response
+
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Station not found: {station_id}", status_code=404) from e
+            else:
+                raise APIError(
+                    f"Failed to force update sensor statistics: {e}", status_code=e.status
+                ) from e
+        except Exception as e:
+            raise APIError(f"Failed to force update sensor statistics: {e}") from e
+
+    def force_update_single_sensor_statistics(
+        self, campaign_id: int, station_id: int, sensor_id: int
+    ) -> UpdateSensorStatisticsResponse:
+        """
+        Force update statistics for a single sensor.
+
+        This method triggers a recalculation of statistics for a specific sensor.
+        Statistics include min/max values, averages, standard deviation, percentiles,
+        and measurement counts.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            sensor_id: Sensor ID
+
+        Returns:
+            Response containing update status and processing information
+
+        Raises:
+            ValidationError: If IDs are invalid
+            APIError: If statistics update fails
+        """
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+        if not sensor_id:
+            raise ValidationError("Sensor ID is required", field="sensor_id")
+
+        try:
+            with self.auth_manager.get_api_client() as api_client:
+                sensors_api = SensorsApi(api_client)
+
+                response = sensors_api.force_update_single_sensor_statistics_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_statistics_post(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
+                )
+
+                logger.info(f"Force updated statistics for sensor {sensor_id} in station {station_id}, campaign {campaign_id}")
+                return response
+
+        except ApiException as e:
+            if e.status == 404:
+                raise APIError(f"Sensor not found: {sensor_id}", status_code=404) from e
+            else:
+                raise APIError(
+                    f"Failed to force update sensor statistics: {e}", status_code=e.status
+                ) from e
+        except Exception as e:
+            raise APIError(f"Failed to force update sensor statistics: {e}") from e

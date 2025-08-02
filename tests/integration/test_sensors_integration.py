@@ -8,7 +8,6 @@ Set UPSTREAM_USERNAME and UPSTREAM_PASSWORD environment variables.
 import os
 import tempfile
 from datetime import datetime, timedelta
-from pathlib import Path
 
 import pytest
 
@@ -69,7 +68,7 @@ def measurements_file_content_filled():
 def test_upload_csv_files(client):
     """Test uploading sensor and measurement CSV files."""
     # Create a campaign first
-    from upstream_api_client.models import CampaignsIn, Coordinates, Point
+    from upstream_api_client.models import CampaignsIn
 
     campaign_data = CampaignsIn(
         name="Test Campaign for CSV Upload",
@@ -222,3 +221,234 @@ def test_upload_csv_files(client):
     finally:
         # Clean up campaign
         client.campaigns.delete(campaign_id)
+
+
+def test_sensor_statistics_update(client):
+    """Test sensor statistics force update functionality."""
+    # Create a campaign first
+    from upstream_api_client.models import CampaignsIn, MeasurementIn
+
+    campaign_data = CampaignsIn(
+        name="Test Campaign for Statistics Update",
+        description="Test campaign for sensor statistics update integration tests",
+        contact_name="Integration Tester",
+        contact_email="integration@example.com",
+        allocation="TACC",
+        start_date=datetime.now(),
+        end_date=datetime.now() + timedelta(days=30),
+    )
+
+    campaign = client.create_campaign(campaign_data)
+    campaign_id = campaign.id
+
+    try:
+        # Create a station
+        from upstream_api_client.models import StationCreate
+
+        station_data = StationCreate(
+            name="Test Station for Statistics Update",
+            description="Test station for sensor statistics update integration tests",
+            contact_name="Station Tester",
+            contact_email="station@example.com",
+            start_date=datetime.now(),
+            active=True,
+        )
+
+        station = client.create_station(campaign_id, station_data)
+        station_id = station.id
+
+        try:
+            # Create temporary CSV files for testing with initial data
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as sensors_file:
+                sensors_file.write(sensor_file_content())
+                sensors_file_path = sensors_file.name
+
+            with tempfile.NamedTemporaryFile(
+                mode="w", suffix=".csv", delete=False, encoding="utf-8"
+            ) as measurements_file:
+                measurements_file.write(measurements_file_content_filled())
+                measurements_file_path = measurements_file.name
+
+            try:
+                # Upload initial sensor and measurement data
+                result = client.upload_sensor_measurement_files(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensors_file=sensors_file_path,
+                    measurements_file=measurements_file_path,
+                )
+
+                print(f"Initial upload result: {result}")
+
+                # Get the sensors and their initial statistics
+                sensors = client.sensors.list(
+                    campaign_id=campaign_id, station_id=station_id
+                )
+                assert len(sensors.items) > 0, "Should have sensors after upload"
+
+                # Get a specific sensor for detailed testing
+                temp_sensor = None
+                for sensor in sensors.items:
+                    if sensor.alias == "temp_sensor_01":
+                        temp_sensor = sensor
+                        break
+
+                assert temp_sensor is not None, "temp_sensor_01 should exist"
+                sensor_id = temp_sensor.id
+
+                # Record initial statistics
+                initial_stats = temp_sensor.statistics
+                initial_count = initial_stats.count if initial_stats else 0
+                print(f"Initial measurement count for temp_sensor_01: {initial_count}")
+
+                # Add a new measurement manually
+                measurement_data = MeasurementIn(
+                    collectiontime=datetime.now(),
+                    measurementvalue=25.5,
+                    variablename="Air Temperature",
+                    variabletype="temperature",
+                    description="Test measurement for statistics update",
+                    geometry="POINT(-97.7431 30.2672)",
+                )
+
+                created_measurement = client.measurements.create(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
+                    measurement_in=measurement_data,
+                )
+
+                assert created_measurement.id is not None
+                print(f"Created additional measurement: {created_measurement.id}")
+
+                # Get sensor statistics before force update (should still show old count)
+                sensors_before_update = client.sensors.list(
+                    campaign_id=campaign_id, station_id=station_id
+                )
+                temp_sensor_before = None
+                for sensor in sensors_before_update.items:
+                    if sensor.alias == "temp_sensor_01":
+                        temp_sensor_before = sensor
+                        break
+
+                before_update_count = temp_sensor_before.statistics.count if temp_sensor_before.statistics else 0
+                print(f"Measurement count before statistics update: {before_update_count}")
+
+                # Force update statistics for the specific sensor
+                single_update_result = client.sensors.force_update_single_sensor_statistics(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
+                )
+
+                print(f"Single sensor statistics update result: {single_update_result}")
+                assert single_update_result is not None
+
+                # Get sensor statistics after single sensor force update
+                sensors_after_single_update = client.sensors.list(
+                    campaign_id=campaign_id, station_id=station_id
+                )
+                temp_sensor_after_single = None
+                for sensor in sensors_after_single_update.items:
+                    if sensor.alias == "temp_sensor_01":
+                        temp_sensor_after_single = sensor
+                        break
+
+                after_single_update_count = temp_sensor_after_single.statistics.count if temp_sensor_after_single.statistics else 0
+                print(f"Measurement count after single sensor statistics update: {after_single_update_count}")
+
+                # Verify that the count increased by 1
+                assert after_single_update_count == initial_count + 1, f"Expected count to increase from {initial_count} to {initial_count + 1}, but got {after_single_update_count}"
+
+                # Add another measurement
+                measurement_data_2 = MeasurementIn(
+                    collectiontime=datetime.now() + timedelta(minutes=1),
+                    measurementvalue=26.0,
+                    variablename="Air Temperature",
+                    variabletype="temperature",
+                    description="Second test measurement for statistics update",
+                    geometry="POINT(-97.7431 30.2672)",
+                )
+
+                created_measurement_2 = client.measurements.create(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensor_id=sensor_id,
+                    measurement_in=measurement_data_2,
+                )
+
+                print(f"Created second additional measurement: {created_measurement_2.id}")
+
+                # Force update statistics for all sensors in the station
+                all_update_result = client.sensors.force_update_statistics(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                )
+
+                print(f"All sensors statistics update result: {all_update_result}")
+                assert all_update_result is not None
+
+                # Get sensor statistics after force update of all sensors
+                sensors_after_all_update = client.sensors.list(
+                    campaign_id=campaign_id, station_id=station_id
+                )
+                temp_sensor_after_all = None
+                for sensor in sensors_after_all_update.items:
+                    if sensor.alias == "temp_sensor_01":
+                        temp_sensor_after_all = sensor
+                        break
+
+                after_all_update_count = temp_sensor_after_all.statistics.count if temp_sensor_after_all.statistics else 0
+                print(f"Measurement count after all sensors statistics update: {after_all_update_count}")
+
+                # Verify that the count increased by 2 total (initial + 2 new measurements)
+                assert after_all_update_count == initial_count + 2, f"Expected count to increase from {initial_count} to {initial_count + 2}, but got {after_all_update_count}"
+
+                # Verify that statistics timestamps were updated
+                final_stats = temp_sensor_after_all.statistics
+                assert final_stats.stats_last_updated is not None
+                print(f"Statistics last updated: {final_stats.stats_last_updated}")
+
+                # Verify other statistics fields are present and reasonable
+                assert final_stats.min_value is not None
+                assert final_stats.max_value is not None
+                assert final_stats.avg_value is not None
+                assert final_stats.stddev_value is not None
+                print(f"Final statistics - Count: {final_stats.count}, Min: {final_stats.min_value}, Max: {final_stats.max_value}, Avg: {final_stats.avg_value}")
+
+            finally:
+                # Clean up temporary files
+                os.unlink(sensors_file_path)
+                os.unlink(measurements_file_path)
+
+        finally:
+            # Clean up measurements and sensors
+            try:
+                sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
+                for sensor in sensors.items:
+                    try:
+                        client.measurements.delete(campaign_id, station_id, sensor.id)
+                    except Exception as e:
+                        print(f"Error deleting measurements for sensor {sensor.id}: {e}")
+
+                    try:
+                        client.sensors.delete(sensor.id, station_id, campaign_id)
+                    except Exception as e:
+                        print(f"Error deleting sensor {sensor.id}: {e}")
+            except Exception as e:
+                print(f"Error during sensor cleanup: {e}")
+
+            # Clean up station
+            try:
+                client.stations.delete(station_id, campaign_id)
+            except Exception as e:
+                print(f"Error deleting station: {e}")
+
+    finally:
+        # Clean up campaign
+        try:
+            client.campaigns.delete(campaign_id)
+        except Exception as e:
+            print(f"Error deleting campaign: {e}")

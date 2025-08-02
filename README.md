@@ -287,6 +287,44 @@ for sensor in sensors.items:
     print(f"  Updated: {stats.stats_last_updated}")
 ```
 
+#### Force Update Sensor Statistics
+
+The SDK provides methods to manually trigger statistics recalculation for sensors when needed (e.g., after data corrections or updates):
+
+```python
+from upstream.sensors import SensorManager
+
+# Initialize sensor manager
+sensor_manager = SensorManager(client.auth_manager)
+
+# Force update statistics for all sensors in a station
+update_result = sensor_manager.force_update_statistics(
+    campaign_id=campaign_id,
+    station_id=station_id
+)
+print(f"Statistics update completed for all sensors in station {station_id}")
+
+# Force update statistics for a specific sensor
+single_update_result = sensor_manager.force_update_single_sensor_statistics(
+    campaign_id=campaign_id,
+    station_id=station_id,
+    sensor_id=sensor_id
+)
+print(f"Statistics update completed for sensor {sensor_id}")
+
+# Verify updated statistics
+updated_sensors = client.sensors.list(campaign_id=campaign_id, station_id=station_id)
+for sensor in updated_sensors.items:
+    stats = sensor.statistics
+    print(f"Updated stats for {sensor.alias}: {stats.stats_last_updated}")
+```
+
+**When to use statistics updates:**
+- After correcting measurement data
+- When statistics appear outdated or inconsistent
+- During data quality assurance processes
+- After bulk data imports or migrations
+
 ### Measurement Data Management
 
 ```python
@@ -505,6 +543,16 @@ This approach allows you to:
 
 - **`upload_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Upload CSV files with comprehensive response
 - **`publish_to_ckan(campaign_id: str, station_id: str, dataset_metadata: dict = None, resource_metadata: dict = None, custom_tags: list = None, **kwargs)`\*\* - Publish to CKAN with custom metadata
+
+#### Sensor Management
+
+- **`sensors.get(sensor_id: int, station_id: int, campaign_id: int)`** - Get sensor by ID with statistics
+- **`sensors.list(campaign_id: int, station_id: int, **kwargs)`** - List sensors for a station with filtering options
+- **`sensors.update(sensor_id: int, station_id: int, campaign_id: int, sensor_update: SensorUpdate)`** - Update sensor configuration
+- **`sensors.delete(sensor_id: int, station_id: int, campaign_id: int)`** - Delete a sensor
+- **`sensors.upload_csv_files(campaign_id: int, station_id: int, sensors_file: str, measurements_file: str, chunk_size: int = 1000)`** - Upload CSV files with chunking support
+- **`sensors.force_update_statistics(campaign_id: int, station_id: int)`** - Force recalculation of statistics for all sensors in a station
+- **`sensors.force_update_single_sensor_statistics(campaign_id: int, station_id: int, sensor_id: int)`** - Force recalculation of statistics for a specific sensor
 
 #### Measurement Management
 
