@@ -2,4 +2,4 @@ requests>=2.25.0
 pyyaml>=6.0
 python-dateutil>=2.8.0
 typing-extensions>=4.0.0; python_version<"3.10"
-upstream-api-client>=0.1.7
+upstream-api-client>=0.1.8
