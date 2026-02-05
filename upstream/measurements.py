@@ -84,7 +84,7 @@ class MeasurementManager:
                     sensor_id=sensor_id,
                     measurement_in=measurement_in,
                 )
-                return cast(MeasurementCreateResponse, response)
+                return response
 
         except ApiException as e:
             if e.status == 422:
@@ -156,7 +156,7 @@ class MeasurementManager:
                     downsample_threshold=downsample_threshold,
                 )
 
-                return cast(ListMeasurementsResponsePagination, response)
+                return response
 
         except ApiException as e:
             raise APIError(f"Failed to list measurements: {e}", status_code=e.status)
@@ -220,7 +220,7 @@ class MeasurementManager:
                     max_value=max_value,
                 )
 
-                return cast(List[AggregatedMeasurement], response)
+                return response
 
         except ApiException as e:
             raise APIError(
