@@ -6,7 +6,7 @@ using the generated OpenAPI client.
 """
 
 from datetime import datetime
-from typing import Any, List, Optional, Dict
+from typing import Any, List, Optional, Dict, cast
 
 from upstream_api_client.api import MeasurementsApi
 from upstream_api_client.models import (
@@ -84,7 +84,7 @@ class MeasurementManager:
                     sensor_id=sensor_id,
                     measurement_in=measurement_in,
                 )
-                return response
+                return cast(MeasurementCreateResponse, response)
 
         except ApiException as e:
             if e.status == 422:
@@ -156,7 +156,7 @@ class MeasurementManager:
                     downsample_threshold=downsample_threshold,
                 )
 
-                return response
+                return cast(ListMeasurementsResponsePagination, response)
 
         except ApiException as e:
             raise APIError(f"Failed to list measurements: {e}", status_code=e.status)
@@ -220,7 +220,7 @@ class MeasurementManager:
                     max_value=max_value,
                 )
 
-                return response
+                return cast(List[AggregatedMeasurement], response)
 
         except ApiException as e:
             raise APIError(
@@ -347,12 +347,15 @@ class MeasurementManager:
         url = self.auth_manager.build_url(
             f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/measurements.geojson"
         )
-        return request_json(
-            "GET",
-            url,
-            headers=headers,
-            params=params,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "GET",
+                url,
+                headers=headers,
+                params=params,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )
 
     def delete(

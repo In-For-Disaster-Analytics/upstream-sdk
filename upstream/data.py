@@ -6,7 +6,7 @@ This module handles data validation and upload operations using the generated Op
 
 import csv
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
 import requests
 from upstream_api_client.rest import ApiException
@@ -522,7 +522,7 @@ class DataUploader:
             )
 
         try:
-            return response.json()
+            return cast(Dict[str, Any], response.json())
         except ValueError:
             return {"raw_body": response.text}
 

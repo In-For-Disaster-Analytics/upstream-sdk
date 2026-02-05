@@ -2,7 +2,7 @@
 Pods management for the Upstream API.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, cast
 
 from .auth import AuthManager
 from .exceptions import ValidationError
@@ -41,10 +41,13 @@ class PodsManager:
         )
         url = self.auth_manager.build_url("/api/v1/pods/bundle")
         payload = {"base": base, "pg_user": pg_user, "pg_password": pg_password}
-        return request_json(
-            "POST",
-            url,
-            headers=headers,
-            json=payload,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )

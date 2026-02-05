@@ -6,7 +6,7 @@ using the generated OpenAPI client.
 """
 
 import io
-from typing import BinaryIO, Optional
+from typing import BinaryIO, Optional, Dict, Any, cast
 
 import requests
 
@@ -368,7 +368,7 @@ class StationManager:
         force: bool = False,
         organization: Optional[str] = None,
         tapis_token: Optional[str] = None,
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Publish a station (optionally cascading to sensors)."""
         if not campaign_id:
             raise ValidationError("Campaign ID is required", field="campaign_id")
@@ -387,12 +387,15 @@ class StationManager:
             "force": force,
             "organization": organization,
         }
-        return request_json(
-            "POST",
-            url,
-            headers=headers,
-            json=payload,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )
 
     def unpublish(
@@ -403,7 +406,7 @@ class StationManager:
         force: bool = False,
         organization: Optional[str] = None,
         tapis_token: Optional[str] = None,
-    ) -> dict:
+    ) -> Dict[str, Any]:
         """Unpublish a station (optionally cascading to sensors)."""
         if not campaign_id:
             raise ValidationError("Campaign ID is required", field="campaign_id")
@@ -422,12 +425,15 @@ class StationManager:
             "force": force,
             "organization": organization,
         }
-        return request_json(
-            "POST",
-            url,
-            headers=headers,
-            json=payload,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )
 
     def export_station_sensors(self, station_id: int, campaign_id: int) -> BinaryIO:

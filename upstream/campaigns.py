@@ -5,7 +5,7 @@ This module handles creation, retrieval, and management of environmental
 monitoring campaigns using the generated OpenAPI client.
 """
 
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, cast
 
 from upstream_api_client.api import CampaignsApi
 from upstream_api_client.models import (
@@ -220,8 +220,11 @@ class CampaignManager:
 
         headers = self.auth_manager.get_headers()
         url = self.auth_manager.build_url(f"/api/v1/campaigns/{campaign_id}/permissions")
-        return request_json(
-            "GET", url, headers=headers, timeout=self.auth_manager.config.timeout
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "GET", url, headers=headers, timeout=self.auth_manager.config.timeout
+            ),
         )
 
     def publish(
@@ -246,12 +249,15 @@ class CampaignManager:
             "force": force,
             "organization": organization,
         }
-        return request_json(
-            "POST",
-            url,
-            headers=headers,
-            json=payload,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )
 
     def unpublish(
@@ -276,10 +282,13 @@ class CampaignManager:
             "force": force,
             "organization": organization,
         }
-        return request_json(
-            "POST",
-            url,
-            headers=headers,
-            json=payload,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )

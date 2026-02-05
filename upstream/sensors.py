@@ -329,10 +329,10 @@ class SensorManager:
 
                 all_responses.append(response)
 
-                logger.info(
-                    f"Successfully uploaded {len(measurements_chunks)} measurement chunks for campaign {campaign_id}, station {station_id}"
-                )
-                return cast(Dict[str, Any], all_responses[-1]) if all_responses else {}
+            logger.info(
+                f"Successfully uploaded {len(measurements_chunks)} measurement chunks for campaign {campaign_id}, station {station_id}"
+            )
+            return all_responses[-1] if all_responses else {}
 
         except ApiException as e:
             if e.status == 422:
@@ -484,12 +484,15 @@ class SensorManager:
             "force": force,
             "organization": organization,
         }
-        return request_json(
-            "POST",
-            url,
-            headers=headers,
-            json=payload,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )
 
     def unpublish(
@@ -522,10 +525,13 @@ class SensorManager:
             "force": force,
             "organization": organization,
         }
-        return request_json(
-            "POST",
-            url,
-            headers=headers,
-            json=payload,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "POST",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )

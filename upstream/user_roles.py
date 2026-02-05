@@ -2,7 +2,7 @@
 User role management for the Upstream API.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, cast
 
 import requests
 
@@ -26,7 +26,7 @@ class UserRoleManager:
         response = request_json(
             "GET", url, headers=headers, timeout=self.auth_manager.config.timeout
         )
-        return response or []
+        return cast(List[Dict[str, Any]], response or [])
 
     def upsert_role(self, username: str, role: str) -> Dict[str, Any]:
         if not username:
@@ -37,12 +37,15 @@ class UserRoleManager:
         headers = self.auth_manager.get_headers()
         url = self.auth_manager.build_url(f"/api/v1/user-roles/{username}")
         payload = {"role": role}
-        return request_json(
-            "PUT",
-            url,
-            headers=headers,
-            json=payload,
-            timeout=self.auth_manager.config.timeout,
+        return cast(
+            Dict[str, Any],
+            request_json(
+                "PUT",
+                url,
+                headers=headers,
+                json=payload,
+                timeout=self.auth_manager.config.timeout,
+            ),
         )
 
     def delete_role(self, username: str) -> bool:
