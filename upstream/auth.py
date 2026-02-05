@@ -6,8 +6,8 @@ import logging
 from datetime import datetime, timedelta
 from typing import Any, Dict, Optional
 
+import requests
 from upstream_api_client import ApiClient, Configuration
-from upstream_api_client.api import AuthApi
 from upstream_api_client.rest import ApiException
 
 from .exceptions import AuthenticationError, ConfigurationError, NetworkError
@@ -33,6 +33,11 @@ class AuthManager:
         self.api_client: Optional[ApiClient] = None
         self.access_token: Optional[str] = None
         self.token_expires_at: Optional[datetime] = None
+        self.tapis_access_token: Optional[str] = None
+        self.tapis_refresh_token: Optional[str] = None
+        self.tapis_expires_at: Optional[int] = None
+        self.username: Optional[str] = None
+        self.role: Optional[str] = None
 
         # Validate configuration
         if not config.username or not config.password:
@@ -49,38 +54,54 @@ class AuthManager:
             AuthenticationError: If authentication fails
         """
         try:
-            with ApiClient(self.configuration) as api_client:
-                auth_api = AuthApi(api_client)
-                # Attempt login
-                if self.config.username is None or self.config.password is None:
-                    raise AuthenticationError("Username and password are required")
+            if self.config.username is None or self.config.password is None:
+                raise AuthenticationError("Username and password are required")
 
-                response = auth_api.login_api_v1_token_post(
-                    username=self.config.username,
-                    password=self.config.password,
-                    grant_type="password",
+            url = self._build_url("/api/v1/token")
+            payload = {
+                "username": self.config.username,
+                "password": self.config.password,
+                "grant_type": "password",
+            }
+            response = requests.post(url, data=payload, timeout=self.config.timeout)
+
+            if response.status_code == 401:
+                raise AuthenticationError("Invalid username or password")
+            if response.status_code == 422:
+                raise AuthenticationError("Authentication request validation failed")
+            if response.status_code >= 400:
+                raise AuthenticationError(
+                    f"Authentication failed: {response.status_code} {response.text}"
                 )
 
-                # Store token information
-                self.access_token = response.access_token
-                self.configuration.access_token = response.access_token
+            data = response.json()
 
-                # Calculate expiration time (default to 1 hour if not provided)
-                expires_in = getattr(response, "expires_in", 3600)
-                self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+            # Store token information
+            self.access_token = data.get("access_token")
+            if not self.access_token:
+                raise AuthenticationError("Authentication response missing access token")
+            self.configuration.access_token = self.access_token
 
-                logger.info("Successfully authenticated with Upstream API")
-                return True
+            # Additional auth context (optional)
+            self.tapis_access_token = data.get("tapis_access_token")
+            self.tapis_refresh_token = data.get("tapis_refresh_token")
+            self.tapis_expires_at = data.get("tapis_expires_at")
+            self.username = data.get("username") or self.config.username
+            self.role = data.get("role")
 
+            # Calculate expiration time (default to 1 hour if not provided)
+            expires_in = data.get("expires_in", 3600)
+            self.token_expires_at = datetime.now() + timedelta(seconds=expires_in)
+
+            logger.info("Successfully authenticated with Upstream API")
+            return True
+
+        except requests.RequestException as e:
+            raise NetworkError(f"Authentication request failed: {e}") from e
         except ApiException as e:
-            if e.status == 401:
-                raise AuthenticationError("Invalid username or password")
-            elif e.status == 422:
-                raise AuthenticationError("Authentication request validation failed")
-            else:
-                raise AuthenticationError(f"Authentication failed: {e}")
+            raise AuthenticationError(f"Authentication failed: {e}") from e
         except Exception as e:
-            raise NetworkError(f"Authentication request failed: {e}")
+            raise NetworkError(f"Authentication request failed: {e}") from e
 
     def is_authenticated(self) -> bool:
         """
@@ -112,7 +133,11 @@ class AuthManager:
 
         return ApiClient(self.configuration)
 
-    def get_headers(self) -> Dict[str, str]:
+    def get_headers(
+        self,
+        include_tapis_token: bool = False,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, str]:
         """
         Get authentication headers for direct requests.
 
@@ -123,10 +148,29 @@ class AuthManager:
             if not self.authenticate():
                 raise AuthenticationError("Failed to authenticate")
 
-        return {
+        headers = {
             "Authorization": f"Bearer {self.access_token}",
             "Content-Type": "application/json",
         }
+        if include_tapis_token:
+            token_value = tapis_token or self.tapis_access_token
+            if token_value:
+                headers["X-TAPIS-TOKEN"] = token_value
+        return headers
+
+    def get_tapis_token(self) -> Optional[str]:
+        """Return the cached Tapis access token if available."""
+        return self.tapis_access_token
+
+    def _build_url(self, path: str) -> str:
+        base = (self.config.base_url or "").rstrip("/")
+        if not path.startswith("/"):
+            path = "/" + path
+        return f"{base}{path}"
+
+    def build_url(self, path: str) -> str:
+        """Public wrapper for building absolute URLs."""
+        return self._build_url(path)
 
     def refresh_token(self) -> bool:
         """

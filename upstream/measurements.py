@@ -6,7 +6,7 @@ using the generated OpenAPI client.
 """
 
 from datetime import datetime
-from typing import Any, List, Optional
+from typing import Any, List, Optional, Dict
 
 from upstream_api_client.api import MeasurementsApi
 from upstream_api_client.models import (
@@ -20,6 +20,7 @@ from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager
 from .exceptions import APIError, ValidationError
+from .http import request_json
 from .utils import get_logger
 
 logger = get_logger(__name__)
@@ -296,6 +297,63 @@ class MeasurementManager:
                 ) from e
         except Exception as e:
             raise APIError(f"Failed to update measurement: {e}") from e
+
+    def get_geojson(
+        self,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        min_measurement_value: Optional[float] = None,
+        max_measurement_value: Optional[float] = None,
+        limit: Optional[int] = None,
+        page: Optional[int] = None,
+        downsample_threshold: Optional[int] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get measurements as GeoJSON."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+        if not sensor_id:
+            raise ValidationError("Sensor ID is required", field="sensor_id")
+
+        params: Dict[str, Any] = {}
+        if start_date:
+            params["start_date"] = (
+                start_date.isoformat() if hasattr(start_date, "isoformat") else start_date
+            )
+        if end_date:
+            params["end_date"] = (
+                end_date.isoformat() if hasattr(end_date, "isoformat") else end_date
+            )
+        if min_measurement_value is not None:
+            params["min_measurement_value"] = min_measurement_value
+        if max_measurement_value is not None:
+            params["max_measurement_value"] = max_measurement_value
+        if limit is not None:
+            params["limit"] = limit
+        if page is not None:
+            params["page"] = page
+        if downsample_threshold is not None:
+            params["downsample_threshold"] = downsample_threshold
+
+        include_tapis = bool(tapis_token or self.auth_manager.get_tapis_token())
+        headers = self.auth_manager.get_headers(
+            include_tapis_token=include_tapis, tapis_token=tapis_token
+        )
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/measurements.geojson"
+        )
+        return request_json(
+            "GET",
+            url,
+            headers=headers,
+            params=params,
+            timeout=self.auth_manager.config.timeout,
+        )
 
     def delete(
         self,

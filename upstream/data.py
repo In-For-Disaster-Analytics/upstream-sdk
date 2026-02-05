@@ -6,13 +6,13 @@ This module handles data validation and upload operations using the generated Op
 
 import csv
 from pathlib import Path
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union
 
-from upstream_api_client.api import UploadfileCsvApi
+import requests
 from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager
-from .exceptions import UploadError, ValidationError
+from .exceptions import APIError, UploadError, ValidationError
 from .utils import ConfigManager, chunk_file, get_logger, validate_file_size
 
 logger = get_logger(__name__)
@@ -196,6 +196,7 @@ class DataUploader:
         sensors_file: Union[str, Path],
         measurements_file: Union[str, Path],
         validate_data: bool = True,
+        tapis_token: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -238,37 +239,29 @@ class DataUploader:
             logger.info("Validating measurement data format...")
             self.validator.validate_csv_file(measurements_file, "measurements")
 
-        # Upload files using OpenAPI client
+        # Upload files using multipart request (supports optional Tapis token)
         try:
+            response = self._post_upload(
+                campaign_id=campaign_id,
+                station_id=station_id,
+                sensors_payload=sensors_file,
+                measurements_payload=measurements_file,
+                tapis_token=tapis_token,
+            )
 
-            # Read files as bytes for upload
-            with open(sensors_file, "rb") as sf, open(measurements_file, "rb") as mf:
-                sensors_data = sf.read()
-                measurements_data = mf.read()
+            logger.info(
+                f"Successfully uploaded data for campaign {campaign_id}, station {station_id}"
+            )
 
-            with self.auth_manager.get_api_client() as api_client:
-                upload_api = UploadfileCsvApi(api_client)
-
-                response = upload_api.post_sensor_and_measurement_api_v1_uploadfile_csv_campaign_campaign_id_station_station_id_sensor_post(
-                    campaign_id=campaign_id,
-                    station_id=station_id,
-                    upload_file_sensors=sensors_data,
-                    upload_file_measurements=measurements_data,
-                )
-
-                logger.info(
-                    f"Successfully uploaded data for campaign {campaign_id}, station {station_id}"
-                )
-
-                return {
-                    "success": True,
-                    "campaign_id": campaign_id,
-                    "station_id": station_id,
-                    "sensors_file": str(sensors_file),
-                    "measurements_file": str(measurements_file),
-                    "response": response,
-                    "message": "Data uploaded successfully",
-                }
+            return {
+                "success": True,
+                "campaign_id": campaign_id,
+                "station_id": station_id,
+                "sensors_file": str(sensors_file),
+                "measurements_file": str(measurements_file),
+                "response": response,
+                "message": "Data uploaded successfully",
+            }
 
         except ApiException as e:
             if e.status == 422:
@@ -286,6 +279,7 @@ class DataUploader:
         sensors_file: Union[str, Path],
         measurements_file: Union[str, Path],
         validate_data: bool = True,
+        tapis_token: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """
@@ -336,6 +330,7 @@ class DataUploader:
                 sensors_file,
                 measurements_file,
                 validate_data,
+                tapis_token=tapis_token,
                 **kwargs,
             )
 
@@ -379,6 +374,7 @@ class DataUploader:
                             validate_data=validate_data
                             and i == 0
                             and j == 0,  # Only validate first chunk
+                            tapis_token=tapis_token,
                             **kwargs,
                         )
                         upload_results.append(result)
@@ -461,6 +457,74 @@ class DataUploader:
         )
 
         return upload_file_sensors, measurements_chunks
+
+    def _post_upload(
+        self,
+        campaign_id: int,
+        station_id: int,
+        sensors_payload: Union[str, Path, bytes, Tuple[str, bytes]],
+        measurements_payload: Union[str, Path, bytes, Tuple[str, bytes]],
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        url = self.auth_manager.build_url(
+            f"/api/v1/uploadfile_csv/campaign/{campaign_id}/station/{station_id}/sensor"
+        )
+        headers = self.auth_manager.get_headers(
+            include_tapis_token=bool(tapis_token or self.auth_manager.get_tapis_token()),
+            tapis_token=tapis_token,
+        )
+        headers.pop("Content-Type", None)
+
+        def _prepare(
+            payload: Union[str, Path, bytes, Tuple[str, bytes]], default_name: str
+        ) -> Tuple[str, Any]:
+            if isinstance(payload, (str, Path)):
+                file_path = Path(payload)
+                return (file_path.name, open(file_path, "rb"))
+            if isinstance(payload, tuple) and len(payload) == 2:
+                filename, content = payload
+                return (filename, content)
+            if isinstance(payload, bytes):
+                return (default_name, payload)
+            raise ValidationError("Invalid file payload", field=default_name)
+
+        sensors_file = None
+        measurements_file = None
+        try:
+            sensors_file = _prepare(sensors_payload, "sensors.csv")
+            measurements_file = _prepare(measurements_payload, "measurements.csv")
+            files = {
+                "upload_file_sensors": sensors_file,
+                "upload_file_measurements": measurements_file,
+            }
+
+            response = requests.post(
+                url,
+                headers=headers,
+                files=files,
+                timeout=self.auth_manager.config.timeout,
+            )
+        finally:
+            for item in (sensors_file, measurements_file):
+                if isinstance(item, tuple) and hasattr(item[1], "close"):
+                    try:
+                        item[1].close()
+                    except Exception:
+                        pass
+
+        if response.status_code == 422:
+            raise ValidationError(f"Data validation failed: {response.text}")
+        if response.status_code >= 400:
+            raise APIError(
+                message=f"Failed to upload data: {response.status_code}",
+                status_code=response.status_code,
+                response_data={"raw_body": response.text},
+            )
+
+        try:
+            return response.json()
+        except ValueError:
+            return {"raw_body": response.text}
 
     def _prepare_file_input(
         self, file_input: Union[str, Path, bytes, Tuple[str, bytes]], file_type: str

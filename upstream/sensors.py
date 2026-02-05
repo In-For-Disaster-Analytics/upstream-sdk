@@ -8,20 +8,19 @@ using the generated OpenAPI client.
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple, Union, cast
 
-from upstream_api_client.api import SensorsApi, UploadfileCsvApi
+from upstream_api_client.api import SensorsApi
 from upstream_api_client.models import (
     GetSensorResponse,
     ListSensorsResponsePagination,
     SensorCreateResponse,
     SensorUpdate,
-    ForceUpdateSensorStatisticsResponse,
-    UpdateSensorStatisticsResponse,
 )
 from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager
 from .data import DataUploader
 from .exceptions import APIError, ValidationError
+from .http import request_json
 from .utils import get_logger
 
 logger = get_logger(__name__)
@@ -248,6 +247,7 @@ class SensorManager:
         sensors_file: Union[str, Path, bytes, Tuple[str, bytes]],
         measurements_file: Union[str, Path, bytes, Tuple[str, bytes]],
         chunk_size: int = 1000,
+        tapis_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Upload sensor and measurement CSV files to process and store data in the database.
@@ -314,23 +314,20 @@ class SensorManager:
             )
 
             all_responses = []
+            for i, chunk in enumerate(measurements_chunks):
+                logger.info(
+                    f"Uploading measurements chunk {i + 1}/{len(measurements_chunks)} ({len(chunk)} lines)"
+                )
 
-            with self.auth_manager.get_api_client() as api_client:
-                upload_api = UploadfileCsvApi(api_client)
+                response = self.data_uploader._post_upload(
+                    campaign_id=campaign_id,
+                    station_id=station_id,
+                    sensors_payload=upload_file_sensors,  # Always upload sensors file
+                    measurements_payload=chunk,
+                    tapis_token=tapis_token,
+                )
 
-                for i, chunk in enumerate(measurements_chunks):
-                    logger.info(
-                        f"Uploading measurements chunk {i + 1}/{len(measurements_chunks)} ({len(chunk)} lines)"
-                    )
-
-                    response = upload_api.post_sensor_and_measurement_api_v1_uploadfile_csv_campaign_campaign_id_station_station_id_sensor_post(
-                        campaign_id=campaign_id,
-                        station_id=station_id,
-                        upload_file_sensors=upload_file_sensors,  # Always upload sensors file
-                        upload_file_measurements=chunk,
-                    )
-
-                    all_responses.append(response)
+                all_responses.append(response)
 
                 logger.info(
                     f"Successfully uploaded {len(measurements_chunks)} measurement chunks for campaign {campaign_id}, station {station_id}"
@@ -349,7 +346,7 @@ class SensorManager:
 
     def force_update_statistics(
         self, campaign_id: int, station_id: int
-    ) -> ForceUpdateSensorStatisticsResponse:
+    ) -> Dict[str, Any]:
         """
         Force update statistics for all sensors in a station.
 
@@ -373,31 +370,36 @@ class SensorManager:
         if not station_id:
             raise ValidationError("Station ID is required", field="station_id")
 
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/statistics"
+        )
+        headers = self.auth_manager.get_headers()
         try:
-            with self.auth_manager.get_api_client() as api_client:
-                sensors_api = SensorsApi(api_client)
-
-                response = sensors_api.force_update_sensor_statistics_api_v1_campaigns_campaign_id_stations_station_id_sensors_statistics_post(
-                    campaign_id=campaign_id,
-                    station_id=station_id,
-                )
-
-                logger.info(f"Force updated statistics for all sensors in station {station_id}, campaign {campaign_id}")
-                return response
-
-        except ApiException as e:
-            if e.status == 404:
+            response = request_json(
+                "POST",
+                url,
+                headers=headers,
+                timeout=self.auth_manager.config.timeout,
+            )
+            logger.info(
+                "Force updated statistics for all sensors in station %s, campaign %s",
+                station_id,
+                campaign_id,
+            )
+            return response or {}
+        except APIError as e:
+            if e.status_code == 404:
                 raise APIError(f"Station not found: {station_id}", status_code=404) from e
-            else:
-                raise APIError(
-                    f"Failed to force update sensor statistics: {e}", status_code=e.status
-                ) from e
+            raise APIError(
+                f"Failed to force update sensor statistics: {e}",
+                status_code=e.status_code,
+            ) from e
         except Exception as e:
             raise APIError(f"Failed to force update sensor statistics: {e}") from e
 
     def force_update_single_sensor_statistics(
         self, campaign_id: int, station_id: int, sensor_id: int
-    ) -> UpdateSensorStatisticsResponse:
+    ) -> Dict[str, Any]:
         """
         Force update statistics for a single sensor.
 
@@ -424,25 +426,106 @@ class SensorManager:
         if not sensor_id:
             raise ValidationError("Sensor ID is required", field="sensor_id")
 
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/statistics"
+        )
+        headers = self.auth_manager.get_headers()
         try:
-            with self.auth_manager.get_api_client() as api_client:
-                sensors_api = SensorsApi(api_client)
-
-                response = sensors_api.force_update_single_sensor_statistics_api_v1_campaigns_campaign_id_stations_station_id_sensors_sensor_id_statistics_post(
-                    campaign_id=campaign_id,
-                    station_id=station_id,
-                    sensor_id=sensor_id,
-                )
-
-                logger.info(f"Force updated statistics for sensor {sensor_id} in station {station_id}, campaign {campaign_id}")
-                return response
-
-        except ApiException as e:
-            if e.status == 404:
+            response = request_json(
+                "POST",
+                url,
+                headers=headers,
+                timeout=self.auth_manager.config.timeout,
+            )
+            logger.info(
+                "Force updated statistics for sensor %s in station %s, campaign %s",
+                sensor_id,
+                station_id,
+                campaign_id,
+            )
+            return response or {}
+        except APIError as e:
+            if e.status_code == 404:
                 raise APIError(f"Sensor not found: {sensor_id}", status_code=404) from e
-            else:
-                raise APIError(
-                    f"Failed to force update sensor statistics: {e}", status_code=e.status
-                ) from e
+            raise APIError(
+                f"Failed to force update sensor statistics: {e}",
+                status_code=e.status_code,
+            ) from e
         except Exception as e:
             raise APIError(f"Failed to force update sensor statistics: {e}") from e
+
+    def publish(
+        self,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
+        cascade: bool = False,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Publish a sensor."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+        if not sensor_id:
+            raise ValidationError("Sensor ID is required", field="sensor_id")
+
+        include_tapis = bool(tapis_token or self.auth_manager.get_tapis_token())
+        headers = self.auth_manager.get_headers(
+            include_tapis_token=include_tapis, tapis_token=tapis_token
+        )
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/publish"
+        )
+        payload = {
+            "cascade": cascade,
+            "force": force,
+            "organization": organization,
+        }
+        return request_json(
+            "POST",
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self.auth_manager.config.timeout,
+        )
+
+    def unpublish(
+        self,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
+        cascade: bool = False,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Unpublish a sensor."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+        if not sensor_id:
+            raise ValidationError("Sensor ID is required", field="sensor_id")
+
+        include_tapis = bool(tapis_token or self.auth_manager.get_tapis_token())
+        headers = self.auth_manager.get_headers(
+            include_tapis_token=include_tapis, tapis_token=tapis_token
+        )
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/unpublish"
+        )
+        payload = {
+            "cascade": cascade,
+            "force": force,
+            "organization": organization,
+        }
+        return request_json(
+            "POST",
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self.auth_manager.config.timeout,
+        )

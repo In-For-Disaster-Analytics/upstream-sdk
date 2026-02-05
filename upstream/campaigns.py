@@ -5,7 +5,7 @@ This module handles creation, retrieval, and management of environmental
 monitoring campaigns using the generated OpenAPI client.
 """
 
-from typing import Optional
+from typing import Optional, Dict, Any
 
 from upstream_api_client.api import CampaignsApi
 from upstream_api_client.models import (
@@ -21,6 +21,7 @@ from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager
 from .exceptions import APIError, ValidationError
+from .http import request_json
 from .utils import get_logger
 
 logger = get_logger(__name__)
@@ -211,3 +212,74 @@ class CampaignManager:
                 raise APIError(f"Failed to delete campaign: {e}", status_code=e.status)
         except Exception as e:
             raise APIError(f"Failed to delete campaign: {e}")
+
+    def get_permissions(self, campaign_id: int) -> Dict[str, Any]:
+        """Get permissions for a campaign."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
+        headers = self.auth_manager.get_headers()
+        url = self.auth_manager.build_url(f"/api/v1/campaigns/{campaign_id}/permissions")
+        return request_json(
+            "GET", url, headers=headers, timeout=self.auth_manager.config.timeout
+        )
+
+    def publish(
+        self,
+        campaign_id: int,
+        cascade: bool = True,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Publish a campaign (optionally cascading to child resources)."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
+        include_tapis = bool(tapis_token or self.auth_manager.get_tapis_token())
+        headers = self.auth_manager.get_headers(
+            include_tapis_token=include_tapis, tapis_token=tapis_token
+        )
+        url = self.auth_manager.build_url(f"/api/v1/campaigns/{campaign_id}/publish")
+        payload = {
+            "cascade": cascade,
+            "force": force,
+            "organization": organization,
+        }
+        return request_json(
+            "POST",
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self.auth_manager.config.timeout,
+        )
+
+    def unpublish(
+        self,
+        campaign_id: int,
+        cascade: bool = True,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Unpublish a campaign (optionally cascading to child resources)."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+
+        include_tapis = bool(tapis_token or self.auth_manager.get_tapis_token())
+        headers = self.auth_manager.get_headers(
+            include_tapis_token=include_tapis, tapis_token=tapis_token
+        )
+        url = self.auth_manager.build_url(f"/api/v1/campaigns/{campaign_id}/unpublish")
+        payload = {
+            "cascade": cascade,
+            "force": force,
+            "organization": organization,
+        }
+        return request_json(
+            "POST",
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self.auth_manager.config.timeout,
+        )

@@ -8,7 +8,7 @@ and CKAN data platform using the OpenAPI client.
 import os
 from datetime import datetime
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Tuple, Union, BinaryIO
 
 from upstream_api_client import MeasurementCreateResponse, MeasurementIn
 from upstream_api_client.models import CampaignsIn, StationCreate
@@ -32,11 +32,15 @@ from upstream.ckan import CKANIntegration
 
 from .auth import AuthManager
 from .campaigns import CampaignManager
+from .ckan_api import CkanApiManager
 from .data import DataUploader
 from .exceptions import ConfigurationError
 from .measurements import MeasurementManager
+from .pods import PodsManager
+from .sensor_variables import SensorVariableManager
 from .sensors import SensorManager
 from .stations import StationManager
+from .user_roles import UserRoleManager
 from .utils import ConfigManager, get_logger
 
 logger = get_logger(__name__)
@@ -94,6 +98,10 @@ class UpstreamClient:
         self.sensors = SensorManager(self.auth_manager)
         self.measurements = MeasurementManager(self.auth_manager)
         self.data = DataUploader(self.auth_manager)
+        self.sensor_variables = SensorVariableManager(self.auth_manager)
+        self.ckan_api = CkanApiManager(self.auth_manager)
+        self.pods = PodsManager(self.auth_manager)
+        self.user_roles = UserRoleManager(self.auth_manager)
 
         # Initialize CKAN integration if URL provided
         if config.ckan_url:
@@ -226,6 +234,7 @@ class UpstreamClient:
         station_id: int,
         sensors_file: Union[str, Path],
         measurements_file: Union[str, Path],
+        tapis_token: Optional[str] = None,
         **kwargs: Any,
     ) -> Dict[str, Any]:
         """Upload sensor data from CSV files.
@@ -245,7 +254,218 @@ class UpstreamClient:
             station_id=station_id,
             sensors_file=sensors_file,
             measurements_file=measurements_file,
+            tapis_token=tapis_token,
             **kwargs,
+        )
+
+    def get_campaign_permissions(self, campaign_id: int) -> Dict[str, Any]:
+        """Get permissions for a campaign."""
+        return self.campaigns.get_permissions(campaign_id)
+
+    def publish_campaign(
+        self,
+        campaign_id: int,
+        cascade: bool = True,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Publish a campaign."""
+        return self.campaigns.publish(
+            campaign_id=campaign_id,
+            cascade=cascade,
+            force=force,
+            organization=organization,
+            tapis_token=tapis_token,
+        )
+
+    def unpublish_campaign(
+        self,
+        campaign_id: int,
+        cascade: bool = True,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Unpublish a campaign."""
+        return self.campaigns.unpublish(
+            campaign_id=campaign_id,
+            cascade=cascade,
+            force=force,
+            organization=organization,
+            tapis_token=tapis_token,
+        )
+
+    def publish_station(
+        self,
+        campaign_id: int,
+        station_id: int,
+        cascade: bool = False,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Publish a station."""
+        return self.stations.publish(
+            campaign_id=campaign_id,
+            station_id=station_id,
+            cascade=cascade,
+            force=force,
+            organization=organization,
+            tapis_token=tapis_token,
+        )
+
+    def unpublish_station(
+        self,
+        campaign_id: int,
+        station_id: int,
+        cascade: bool = False,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Unpublish a station."""
+        return self.stations.unpublish(
+            campaign_id=campaign_id,
+            station_id=station_id,
+            cascade=cascade,
+            force=force,
+            organization=organization,
+            tapis_token=tapis_token,
+        )
+
+    def publish_sensor(
+        self,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
+        cascade: bool = False,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Publish a sensor."""
+        return self.sensors.publish(
+            campaign_id=campaign_id,
+            station_id=station_id,
+            sensor_id=sensor_id,
+            cascade=cascade,
+            force=force,
+            organization=organization,
+            tapis_token=tapis_token,
+        )
+
+    def unpublish_sensor(
+        self,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
+        cascade: bool = False,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Unpublish a sensor."""
+        return self.sensors.unpublish(
+            campaign_id=campaign_id,
+            station_id=station_id,
+            sensor_id=sensor_id,
+            cascade=cascade,
+            force=force,
+            organization=organization,
+            tapis_token=tapis_token,
+        )
+
+    def export_sensors_csv(
+        self,
+        campaign_id: int,
+        station_id: int,
+        output: Optional[BinaryIO] = None,
+    ) -> Optional[str]:
+        """Export sensors for a station as CSV."""
+        return self.stations.export_sensors_csv(
+            campaign_id=campaign_id, station_id=station_id, output=output
+        )
+
+    def export_measurements_csv(
+        self,
+        campaign_id: int,
+        station_id: int,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        output: Optional[BinaryIO] = None,
+    ) -> Optional[str]:
+        """Export measurements for a station as CSV."""
+        return self.stations.export_measurements_csv(
+            campaign_id=campaign_id,
+            station_id=station_id,
+            start_date=start_date,
+            end_date=end_date,
+            output=output,
+        )
+
+    def list_sensor_variables(self) -> List[str]:
+        """List available sensor variables."""
+        return self.sensor_variables.list()
+
+    def list_ckan_organizations(self, tapis_token: Optional[str] = None) -> List[Dict[str, Any]]:
+        """List CKAN organizations available to the current user."""
+        return self.ckan_api.list_organizations(tapis_token=tapis_token)
+
+    def create_pod_bundle(
+        self,
+        base: str,
+        pg_user: str,
+        pg_password: str,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Create a pod bundle."""
+        return self.pods.create_bundle(
+            base=base,
+            pg_user=pg_user,
+            pg_password=pg_password,
+            tapis_token=tapis_token,
+        )
+
+    def list_user_roles(self) -> List[Dict[str, Any]]:
+        """List user roles (admin only)."""
+        return self.user_roles.list_roles()
+
+    def upsert_user_role(self, username: str, role: str) -> Dict[str, Any]:
+        """Create or update a user role (admin only)."""
+        return self.user_roles.upsert_role(username=username, role=role)
+
+    def delete_user_role(self, username: str) -> bool:
+        """Delete a user role (admin only)."""
+        return self.user_roles.delete_role(username=username)
+
+    def get_measurements_geojson(
+        self,
+        campaign_id: int,
+        station_id: int,
+        sensor_id: int,
+        start_date: Optional[datetime] = None,
+        end_date: Optional[datetime] = None,
+        min_measurement_value: Optional[float] = None,
+        max_measurement_value: Optional[float] = None,
+        limit: Optional[int] = None,
+        page: Optional[int] = None,
+        downsample_threshold: Optional[int] = None,
+        tapis_token: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Get sensor measurements as GeoJSON."""
+        return self.measurements.get_geojson(
+            campaign_id=campaign_id,
+            station_id=station_id,
+            sensor_id=sensor_id,
+            start_date=start_date,
+            end_date=end_date,
+            min_measurement_value=min_measurement_value,
+            max_measurement_value=max_measurement_value,
+            limit=limit,
+            page=page,
+            downsample_threshold=downsample_threshold,
+            tapis_token=tapis_token,
         )
 
     def upload_sensor_measurement_files(

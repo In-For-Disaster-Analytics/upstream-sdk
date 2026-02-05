@@ -6,7 +6,9 @@ using the generated OpenAPI client.
 """
 
 import io
-from typing import BinaryIO
+from typing import BinaryIO, Optional
+
+import requests
 
 from upstream_api_client.api import StationsApi
 from upstream_api_client.models import (
@@ -20,6 +22,7 @@ from upstream_api_client.rest import ApiException
 
 from .auth import AuthManager
 from .exceptions import APIError, ValidationError
+from .http import request_json
 from .utils import get_logger
 
 logger = get_logger(__name__)
@@ -259,6 +262,173 @@ class StationManager:
                 raise APIError(f"Failed to delete station: {e}", status_code=e.status)
         except Exception as e:
             raise APIError(f"Failed to delete station: {e}")
+
+    def export_sensors_csv(
+        self,
+        campaign_id: int,
+        station_id: int,
+        output: Optional[BinaryIO] = None,
+    ) -> Optional[str]:
+        """Export sensors for a station as CSV.
+
+        Args:
+            campaign_id: Campaign ID
+            station_id: Station ID
+            output: Optional binary file-like object to stream into
+
+        Returns:
+            CSV string if output is None, otherwise None.
+        """
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/export"
+        )
+        headers = self.auth_manager.get_headers()
+        try:
+            response = requests.get(
+                url, headers=headers, stream=True, timeout=self.auth_manager.config.timeout
+            )
+        except requests.RequestException as exc:
+            raise APIError(f"Failed to export sensors CSV: {exc}") from exc
+
+        if response.status_code >= 400:
+            raise APIError(
+                f"Failed to export sensors CSV: {response.status_code}",
+                status_code=response.status_code,
+                response_data={"raw_body": response.text},
+            )
+
+        if output is None:
+            return response.text
+
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                output.write(chunk)
+        return None
+
+    def export_measurements_csv(
+        self,
+        campaign_id: int,
+        station_id: int,
+        start_date: Optional[str] = None,
+        end_date: Optional[str] = None,
+        output: Optional[BinaryIO] = None,
+    ) -> Optional[str]:
+        """Export measurements for a station as CSV."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+
+        params = {}
+        if start_date:
+            params["start_date"] = start_date
+        if end_date:
+            params["end_date"] = end_date
+
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/measurements/export"
+        )
+        headers = self.auth_manager.get_headers()
+        try:
+            response = requests.get(
+                url,
+                headers=headers,
+                params=params,
+                stream=True,
+                timeout=self.auth_manager.config.timeout,
+            )
+        except requests.RequestException as exc:
+            raise APIError(f"Failed to export measurements CSV: {exc}") from exc
+
+        if response.status_code >= 400:
+            raise APIError(
+                f"Failed to export measurements CSV: {response.status_code}",
+                status_code=response.status_code,
+                response_data={"raw_body": response.text},
+            )
+
+        if output is None:
+            return response.text
+
+        for chunk in response.iter_content(chunk_size=8192):
+            if chunk:
+                output.write(chunk)
+        return None
+
+    def publish(
+        self,
+        campaign_id: int,
+        station_id: int,
+        cascade: bool = False,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> dict:
+        """Publish a station (optionally cascading to sensors)."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+
+        include_tapis = bool(tapis_token or self.auth_manager.get_tapis_token())
+        headers = self.auth_manager.get_headers(
+            include_tapis_token=include_tapis, tapis_token=tapis_token
+        )
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/publish"
+        )
+        payload = {
+            "cascade": cascade,
+            "force": force,
+            "organization": organization,
+        }
+        return request_json(
+            "POST",
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self.auth_manager.config.timeout,
+        )
+
+    def unpublish(
+        self,
+        campaign_id: int,
+        station_id: int,
+        cascade: bool = False,
+        force: bool = False,
+        organization: Optional[str] = None,
+        tapis_token: Optional[str] = None,
+    ) -> dict:
+        """Unpublish a station (optionally cascading to sensors)."""
+        if not campaign_id:
+            raise ValidationError("Campaign ID is required", field="campaign_id")
+        if not station_id:
+            raise ValidationError("Station ID is required", field="station_id")
+
+        include_tapis = bool(tapis_token or self.auth_manager.get_tapis_token())
+        headers = self.auth_manager.get_headers(
+            include_tapis_token=include_tapis, tapis_token=tapis_token
+        )
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/unpublish"
+        )
+        payload = {
+            "cascade": cascade,
+            "force": force,
+            "organization": organization,
+        }
+        return request_json(
+            "POST",
+            url,
+            headers=headers,
+            json=payload,
+            timeout=self.auth_manager.config.timeout,
+        )
 
     def export_station_sensors(self, station_id: int, campaign_id: int) -> BinaryIO:
         """
