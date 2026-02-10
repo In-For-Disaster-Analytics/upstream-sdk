@@ -14,7 +14,7 @@ from upstream_api_client import GetCampaignResponse, SummaryGetCampaign, GetStat
 
 from upstream.ckan import CKANIntegration
 from upstream.client import UpstreamClient
-from upstream.exceptions import APIError, ConfigurationError
+from upstream.exceptions import APIError
 
 # Test configuration - these should be set in environment for real CKAN testing
 CKAN_URL = os.environ.get("CKAN_URL", "http://localhost:5000")
@@ -534,122 +534,71 @@ class TestUpstreamClientCKANIntegration:
 
             yield mock_client
 
-    def test_publish_to_ckan_with_station_streams(
-        self, mock_station_sensors_csv, mock_station_measurements_csv
-    ):
-        """Test publish_to_ckan with station_id parameter and streaming data."""
-        # Create a mock client and mock its dependencies
+    def test_publish_to_ckan_calls_publish_station(self):
+        """Test publish_to_ckan routes to publish_station."""
         mock_client = MagicMock()
+        expected_result = {"success": True, "status": "published"}
+        mock_client.publish_station.return_value = expected_result
 
-        # Setup mock return values
-        mock_client.stations.export_station_measurements.return_value = (
-            mock_station_measurements_csv
-        )
-        mock_client.stations.export_station_sensors.return_value = (
-            mock_station_sensors_csv
-        )
-        mock_client.campaigns.get.return_value = MagicMock()  # Mock campaign data
-        mock_client.ckan = MagicMock()  # Mock CKAN integration
-
-        expected_result = {
-            "success": True,
-            "dataset": {"id": "test-dataset", "name": "test-campaign"},
-            "resources": [{"id": "resource1"}, {"id": "resource2"}]
-        }
-        mock_client.ckan.publish_campaign.return_value = expected_result
-
-        # Import and call the real publish_to_ckan method
         from upstream.client import UpstreamClient
 
-        # Call the method on the mock client
-        result = UpstreamClient.publish_to_ckan(mock_client, campaign_id="123", station_id="456")
-
-        # Verify station export methods were called
-        mock_client.stations.export_station_measurements.assert_called_once_with(
-            station_id="456", campaign_id="123"
+        result = UpstreamClient.publish_to_ckan(
+            mock_client, campaign_id="123", station_id="456"
         )
-        mock_client.stations.export_station_sensors.assert_called_once_with(
-            station_id="456", campaign_id="123"
+
+        mock_client.publish_station.assert_called_once_with(
+            campaign_id="123",
+            station_id="456",
+            cascade=False,
+            force=False,
+            organization=None,
+            tapis_token=None,
         )
-        mock_client.campaigns.get.assert_called_once_with(campaign_id="123")
-
-        # Verify CKAN publish_campaign was called with streams
-        mock_client.ckan.publish_campaign.assert_called_once()
-        call_args = mock_client.ckan.publish_campaign.call_args
-
-        assert call_args[1]['campaign_id'] == "123"
-        assert 'station_measurements' in call_args[1]
-        assert 'station_sensors' in call_args[1]
-        assert 'campaign_data' in call_args[1]
-
-        # Verify the result
         assert result == expected_result
 
     def test_publish_to_ckan_without_ckan_integration(self):
-        """Test error when CKAN integration is not configured."""
-        # Create mock client with no CKAN integration
+        """Test publish_to_ckan does not require CKAN integration."""
         mock_client = MagicMock()
         mock_client.ckan = None  # No CKAN integration
+        mock_client.publish_station.return_value = {"success": True}
 
         from upstream.client import UpstreamClient
 
-        with pytest.raises(ConfigurationError, match="CKAN integration not configured"):
-            UpstreamClient.publish_to_ckan(mock_client, campaign_id="123", station_id="456")
+        result = UpstreamClient.publish_to_ckan(
+            mock_client, campaign_id="123", station_id="456"
+        )
+
+        mock_client.publish_station.assert_called_once()
+        assert result["success"] is True
 
     def test_publish_to_ckan_station_export_error(self):
-        """Test error handling when station export fails."""
-        # Create mock client
+        """Test error handling when publish_station fails."""
         mock_client = MagicMock()
-
-        # Set up the side_effect to raise an exception when export_station_measurements is called
-        mock_client.stations.export_station_measurements.side_effect = APIError("Station export failed")
-        mock_client.ckan = MagicMock()  # Has CKAN integration
-
-        # Ensure ckan is truthy to pass the None check
-        type(mock_client).ckan = MagicMock()
+        mock_client.publish_station.side_effect = APIError("Station publish failed")
 
         from upstream.client import UpstreamClient
 
-        with pytest.raises(APIError, match="Station export failed"):
-            UpstreamClient.publish_to_ckan(mock_client, campaign_id="123", station_id="456")
+        with pytest.raises(APIError, match="Station publish failed"):
+            UpstreamClient.publish_to_ckan(
+                mock_client, campaign_id="123", station_id="456"
+            )
 
-    def test_publish_to_ckan_streams_contain_data(
-        self, mock_station_sensors_csv, mock_station_measurements_csv
-    ):
-        """Test that station streams contain expected data format."""
-        # Create mock client
+    def test_publish_to_ckan_logs_metadata_ignored(self, caplog):
+        """Test warning is emitted when metadata params are provided."""
         mock_client = MagicMock()
-        mock_client.stations.export_station_measurements.return_value = (
-            mock_station_measurements_csv
-        )
-        mock_client.stations.export_station_sensors.return_value = (
-            mock_station_sensors_csv
-        )
-        mock_client.campaigns.get.return_value = MagicMock()
-        mock_client.ckan = MagicMock()
-        mock_client.ckan.publish_campaign.return_value = {"success": True}
+        mock_client.publish_station.return_value = {"success": True}
 
         from upstream.client import UpstreamClient
 
-        # Test the method
-        UpstreamClient.publish_to_ckan(mock_client, campaign_id="123", station_id="456")
+        UpstreamClient.publish_to_ckan(
+            mock_client,
+            campaign_id="123",
+            station_id="456",
+            dataset_metadata={"foo": "bar"},
+            resource_metadata={"baz": "qux"},
+            custom_tags=["tag1"],
+            auto_publish=False,
+        )
 
-        # Verify CKAN was called with streams
-        call_args = mock_client.ckan.publish_campaign.call_args[1]
-
-        # Check that streams are BinaryIO objects
-        station_measurements = call_args['station_measurements']
-        station_sensors = call_args['station_sensors']
-
-        # Reset stream positions to read content
-        station_measurements.seek(0)
-        station_sensors.seek(0)
-
-        measurements_content = station_measurements.read().decode('utf-8')
-        sensors_content = station_sensors.read().decode('utf-8')
-
-        # Verify CSV content structure
-        assert "collectiontime" in measurements_content
-        assert "temp_01" in measurements_content
-        assert "alias" in sensors_content
-        assert "variablename" in sensors_content
+        mock_client.publish_station.assert_called_once()
+        assert "Custom CKAN metadata parameters are ignored" in caplog.text
