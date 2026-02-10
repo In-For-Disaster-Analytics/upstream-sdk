@@ -5,6 +5,7 @@ Utility functions and classes for Upstream SDK.
 import json
 import logging
 import os
+from urllib.parse import urlparse, urlunparse
 from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
@@ -69,6 +70,9 @@ class ConfigManager:
         # Additional options
         self.extra_config = kwargs
 
+        # Normalize known legacy or web UI base URLs to API endpoints.
+        self.base_url = self._normalize_base_url(self.base_url)
+
         # Validate configuration
         self._validate()
 
@@ -94,6 +98,30 @@ class ConfigManager:
 
         if self.max_chunk_size_mb <= 0:
             raise ConfigurationError("Max chunk size must be positive")
+
+    @staticmethod
+    def _normalize_base_url(base_url: Optional[str]) -> Optional[str]:
+        if not base_url:
+            return base_url
+
+        # Drop trailing slash for consistency
+        base_url = base_url.rstrip("/")
+
+        try:
+            parsed = urlparse(base_url)
+        except Exception:
+            return base_url
+
+        # Known web host -> API host mapping for pods
+        if parsed.netloc == "upstream.pods.tacc.tapis.io":
+            logger.warning(
+                "Base URL %s points to the web host; switching to API host https://upstreamapi.pods.tacc.tapis.io",
+                base_url,
+            )
+            parsed = parsed._replace(netloc="upstreamapi.pods.tacc.tapis.io", scheme="https")
+            return urlunparse(parsed)
+
+        return base_url
 
     @classmethod
     def from_file(cls, config_path: Union[str, Path]) -> "ConfigManager":

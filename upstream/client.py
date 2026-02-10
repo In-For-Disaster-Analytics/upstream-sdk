@@ -34,7 +34,6 @@ from .auth import AuthManager
 from .campaigns import CampaignManager
 from .ckan_api import CkanApiManager
 from .data import DataUploader
-from .exceptions import ConfigurationError
 from .measurements import MeasurementManager
 from .pods import PodsManager
 from .sensor_variables import SensorVariableManager
@@ -672,92 +671,68 @@ class UpstreamClient:
         return self.data.get_file_info(file_path)
 
     def publish_to_ckan(
-        self, 
-        campaign_id: int, 
+        self,
+        campaign_id: int,
         station_id: int,
+        organization: Optional[str] = None,
+        cascade: bool = False,
+        force: bool = False,
+        tapis_token: Optional[str] = None,
         dataset_metadata: Optional[Dict[str, Any]] = None,
         resource_metadata: Optional[Dict[str, Any]] = None,
         custom_tags: Optional[List[str]] = None,
         auto_publish: bool = True,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
-        """Publish campaign data to CKAN with custom metadata support.
+        """Publish station data to CKAN via the Upstream API (pods).
 
         Args:
             campaign_id: Campaign ID
             station_id: Station ID
-            dataset_metadata: Custom metadata for the CKAN dataset (added to extras)
-            resource_metadata: Custom metadata for CKAN resources (sensors and measurements)
-            custom_tags: Additional tags for the dataset (beyond default environmental, sensors, upstream)
-            auto_publish: Whether to automatically publish the dataset (default: True)
-            **kwargs: Additional CKAN parameters
+            organization: Optional CKAN organization to publish into
+            cascade: Whether to cascade publish to child resources
+            force: Whether to force publish even if parent is unpublished
+            tapis_token: Tapis access token required for CKAN operations
+            dataset_metadata: Not supported via API publish (ignored)
+            resource_metadata: Not supported via API publish (ignored)
+            custom_tags: Not supported via API publish (ignored)
+            auto_publish: Not supported via API publish (ignored)
+            **kwargs: Additional parameters (ignored)
 
         Returns:
-            CKAN publication result
-
-        Raises:
-            ConfigurationError: If CKAN integration not configured
+            Publish response from the Upstream API
 
         Examples:
             Basic usage:
-            >>> client.publish_to_ckan("campaign123", "station456")
-
-            With custom dataset metadata:
             >>> client.publish_to_ckan(
-            ...     "campaign123", 
-            ...     "station456",
-            ...     dataset_metadata={
-            ...         "project_name": "Water Quality Study",
-            ...         "funding_agency": "EPA",
-            ...         "study_period": "2024-2025"
-            ...     }
-            ... )
-
-            With custom tags and resource metadata:
-            >>> client.publish_to_ckan(
-            ...     "campaign123", 
-            ...     "station456",
-            ...     custom_tags=["water-quality", "research", "epa-funded"],
-            ...     resource_metadata={
-            ...         "quality_level": "Level 2",
-            ...         "processing_version": "v2.1"
-            ...     }
-            ... )
-
-            Complete customization:
-            >>> client.publish_to_ckan(
-            ...     "campaign123", 
-            ...     "station456",
-            ...     dataset_metadata={
-            ...         "project_pi": "Dr. Jane Smith",
-            ...         "institution": "University XYZ",
-            ...         "grant_number": "EPA-2024-001"
-            ...     },
-            ...     resource_metadata={
-            ...         "calibration_date": "2024-01-15",
-            ...         "data_quality": "QC Passed"
-            ...     },
-            ...     custom_tags=["university-research", "calibrated-data"],
-            ...     auto_publish=False
+            ...     campaign_id=123,
+            ...     station_id=456,
+            ...     organization="upstream",
+            ...     tapis_token="...jwt..."
             ... )
         """
-        if not self.ckan:
-            raise ConfigurationError("CKAN integration not configured")
-        station_data = self.stations.get(station_id=station_id, campaign_id=campaign_id)
-        station_measurements = self.stations.export_station_measurements(station_id=station_id, campaign_id=campaign_id)
-        station_sensors = self.stations.export_station_sensors(station_id=station_id, campaign_id=campaign_id)
-        campaign_data = self.campaigns.get(campaign_id=campaign_id)
-        return self.ckan.publish_campaign(
-            campaign_id=campaign_id, 
-            campaign_data=campaign_data, 
-            station_measurements=station_measurements, 
-            station_sensors=station_sensors, 
-            station_data=station_data,
-            dataset_metadata=dataset_metadata,
-            resource_metadata=resource_metadata,
-            custom_tags=custom_tags,
-            auto_publish=auto_publish,
-            **kwargs
+        ignored_fields = {
+            "dataset_metadata": dataset_metadata,
+            "resource_metadata": resource_metadata,
+            "custom_tags": custom_tags,
+            "auto_publish": auto_publish,
+            "kwargs": kwargs,
+        }
+        if any(value for key, value in ignored_fields.items() if key != "auto_publish") or (
+            "auto_publish" in ignored_fields and auto_publish is False
+        ):
+            logger.warning(
+                "publish_to_ckan now uses the Upstream API publish endpoint. "
+                "Custom CKAN metadata parameters are ignored."
+            )
+
+        return self.publish_station(
+            campaign_id=campaign_id,
+            station_id=station_id,
+            cascade=cascade,
+            force=force,
+            organization=organization,
+            tapis_token=tapis_token,
         )
 
     def logout(self) -> None:
