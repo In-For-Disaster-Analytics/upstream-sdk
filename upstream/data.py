@@ -158,7 +158,8 @@ class DataValidator:
 
         try:
             # Read CSV file
-            with open(file_path, "r", newline="", encoding="utf-8") as f:
+            # Use utf-8-sig to gracefully handle UTF-8 BOM in headers.
+            with open(file_path, "r", newline="", encoding="utf-8-sig") as f:
                 reader = csv.DictReader(f)
                 data = list(reader)
 

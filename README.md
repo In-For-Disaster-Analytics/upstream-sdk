@@ -33,7 +33,7 @@ from datetime import datetime, timedelta
 client = UpstreamClient(
     username="researcher",
     password="password",
-    base_url="https://upstream-dso.tacc.utexas.edu",
+    base_url="https://api.upstream-dso.tacc.utexas.edu",
     ckan_url="https://ckan.tacc.utexas.edu",
     ckan_organization="your-org"
 )
@@ -171,7 +171,7 @@ from upstream.client import UpstreamClient
 client = UpstreamClient(
     username="your_username",
     password="your_password",
-    base_url="https://upstream-dso.tacc.utexas.edu",
+    base_url="https://api.upstream-dso.tacc.utexas.edu",
     ckan_url="https://ckan.tacc.utexas.edu",
     ckan_organization="your-org"
 )
@@ -464,7 +464,7 @@ from upstream_api_client.api.campaigns_api import CampaignsApi
 from upstream_api_client.api.measurements_api import MeasurementsApi
 
 # Initialize the SDK client
-client = UpstreamClient(username="user", password="pass", base_url="https://upstream-dso.tacc.utexas.edu")
+client = UpstreamClient(username="user", password="pass", base_url="https://api.upstream-dso.tacc.utexas.edu")
 client.authenticate()
 
 # Access the underlying API client for advanced operations
@@ -619,7 +619,7 @@ campaign = CampaignsIn(
 upstream:
   username: your_username
   password: your_password
-  base_url: https://upstream-dso.tacc.utexas.edu
+  base_url: https://api.upstream-dso.tacc.utexas.edu
 
 ckan:
   url: https://ckan.tacc.utexas.edu
