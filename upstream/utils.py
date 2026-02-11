@@ -54,7 +54,7 @@ class ConfigManager:
         self.username = username or os.getenv("UPSTREAM_USERNAME")
         self.password = password or os.getenv("UPSTREAM_PASSWORD")
         self.base_url = base_url or os.getenv(
-            "UPSTREAM_BASE_URL", "https://upstream-dso.tacc.utexas.edu"
+            "UPSTREAM_BASE_URL", "https://upstreamapi.pods.tacc.tapis.io"
         )
         self.ckan_url = ckan_url or os.getenv(
             "CKAN_URL", "https://ckan.tacc.utexas.edu"

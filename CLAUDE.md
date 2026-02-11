@@ -5,7 +5,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Configuration Memories
 
 - Configuration with manual credential fallback should be implemented in Jupyter notebooks @UpstreamSDK_Core_Demo.ipynb and @UpstreamSDK_CKAN_Demo.ipynb
-- BASE_URL can be dynamically set between production (https://api.upstream-dso.tacc.utexas.edu/dev) and local development (http://localhost:8000)
+- BASE_URL can be dynamically set between production (https://upstreamapi.pods.tacc.tapis.io/dev) and local development (http://localhost:8000)
 - Print statement for configuration settings suggests manual credential input fallback mechanism in Jupyter notebooks @UpstreamSDK_Core_Demo.ipynb @UpstreamSDK_CKAN_Demo.ipynb
 
 ## Development Commands
