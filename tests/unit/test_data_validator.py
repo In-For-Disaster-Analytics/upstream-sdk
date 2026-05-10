@@ -29,3 +29,17 @@ def test_validate_csv_file_rejects_missing_required_fields(tmp_path, mock_config
     validator = DataValidator(mock_config)
     with pytest.raises(ValidationError, match="Missing required field 'alias'"):
         validator.validate_csv_file(sensors_csv, "sensors")
+
+
+def test_validate_csv_file_accepts_legacy_best_guess_formula_header(tmp_path, mock_config):
+    sensors_csv = tmp_path / "sensors_legacy.csv"
+    sensors_csv.write_text(
+        "alias,BestGuessFormula,units\nsensor_01,Temperature,C\n",
+        encoding="utf-8",
+    )
+
+    validator = DataValidator(mock_config)
+    result = validator.validate_csv_file(sensors_csv, "sensors")
+
+    assert result["valid"] is True
+    assert result["sensor_count"] == 1

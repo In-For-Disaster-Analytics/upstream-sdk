@@ -25,6 +25,7 @@ class DataValidator:
 
     REQUIRED_SENSOR_FIELDS = ["alias", "variablename", "units"]
     REQUIRED_MEASUREMENT_FIELDS = ["collectiontime", "Lat_deg", "Lon_deg"]
+    LEGACY_SENSOR_FIELD_ALIASES = {"BestGuessFormula": "variablename"}
 
     def __init__(self, config: ConfigManager) -> None:
         """
@@ -50,7 +51,8 @@ class DataValidator:
         """
         errors = []
 
-        for i, sensor in enumerate(data):
+        for i, raw_sensor in enumerate(data):
+            sensor = self._normalize_sensor_row(raw_sensor)
             # Check required fields
             for field in self.REQUIRED_SENSOR_FIELDS:
                 if field not in sensor or not sensor[field]:
@@ -72,6 +74,14 @@ class DataValidator:
             "sensor_count": len(data),
             "message": f"Validated {len(data)} sensors",
         }
+
+    def _normalize_sensor_row(self, sensor: Dict[str, Any]) -> Dict[str, Any]:
+        """Map legacy sensor CSV headers to the canonical API field names."""
+        normalized = dict(sensor)
+        for legacy_field, canonical_field in self.LEGACY_SENSOR_FIELD_ALIASES.items():
+            if canonical_field not in normalized and legacy_field in normalized:
+                normalized[canonical_field] = normalized[legacy_field]
+        return normalized
 
     def validate_measurements_data(self, data: List[Dict[str, Any]]) -> Dict[str, Any]:
         """
