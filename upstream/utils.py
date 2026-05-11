@@ -10,6 +10,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, Optional, Union
 
+import certifi
 import yaml
 
 from .exceptions import ConfigurationError
@@ -33,6 +34,8 @@ class ConfigManager:
         max_retries: int = 3,
         chunk_size: int = 10000,
         max_chunk_size_mb: int = 50,
+        verify_ssl: Optional[Union[bool, str]] = None,
+        ssl_ca_cert: Optional[str] = None,
         **kwargs: Any,
     ) -> None:
         """
@@ -48,6 +51,8 @@ class ConfigManager:
             max_retries: Maximum retry attempts
             chunk_size: Number of records per chunk
             max_chunk_size_mb: Maximum chunk size in MB
+            verify_ssl: Whether to verify SSL certificates
+            ssl_ca_cert: Path to a CA bundle for HTTPS certificate verification
             **kwargs: Additional configuration options
         """
         # Load from environment variables first
@@ -66,6 +71,15 @@ class ConfigManager:
         self.max_retries = max_retries
         self.chunk_size = chunk_size
         self.max_chunk_size_mb = max_chunk_size_mb
+        self.verify_ssl = self._coerce_bool(
+            (
+                verify_ssl
+                if verify_ssl is not None
+                else os.getenv("UPSTREAM_VERIFY_SSL", "true")
+            ),
+            "verify_ssl",
+        )
+        self.ssl_ca_cert = ssl_ca_cert or self._get_env_ca_bundle() or certifi.where()
 
         # Additional options
         self.extra_config = kwargs
@@ -99,6 +113,41 @@ class ConfigManager:
         if self.max_chunk_size_mb <= 0:
             raise ConfigurationError("Max chunk size must be positive")
 
+    @property
+    def request_verify(self) -> Union[bool, str]:
+        """Return the value to pass to requests' verify parameter."""
+        if not self.verify_ssl:
+            return False
+        return self.ssl_ca_cert
+
+    @staticmethod
+    def _get_env_ca_bundle() -> Optional[str]:
+        """Return the first configured CA bundle path from common env vars."""
+        for env_name in (
+            "UPSTREAM_SSL_CA_CERT",
+            "REQUESTS_CA_BUNDLE",
+            "CURL_CA_BUNDLE",
+            "SSL_CERT_FILE",
+        ):
+            value = os.getenv(env_name)
+            if value:
+                return value
+        return None
+
+    @staticmethod
+    def _coerce_bool(value: Union[bool, str], field_name: str) -> bool:
+        if isinstance(value, bool):
+            return value
+
+        if isinstance(value, str):
+            normalized = value.strip().lower()
+            if normalized in {"1", "true", "yes", "on"}:
+                return True
+            if normalized in {"0", "false", "no", "off"}:
+                return False
+
+        raise ConfigurationError(f"{field_name} must be a boolean value")
+
     @staticmethod
     def _normalize_base_url(base_url: Optional[str]) -> Optional[str]:
         if not base_url:
@@ -118,7 +167,9 @@ class ConfigManager:
                 "Base URL %s points to the web host; switching to API host https://upstreamapi.pods.portals.tapis.io",
                 base_url,
             )
-            parsed = parsed._replace(netloc="upstreamapi.pods.portals.tapis.io", scheme="https")
+            parsed = parsed._replace(
+                netloc="upstreamapi.pods.portals.tapis.io", scheme="https"
+            )
             return urlunparse(parsed)
 
         # Pods portal hosts expose the UI on "<name>.pods.portals.tapis.io" and
@@ -175,7 +226,11 @@ class ConfigManager:
                 flattened_config["ckan_url"] = ckan_config.get("url")
                 flattened_config["ckan_organization"] = ckan_config.get("organization")
                 flattened_config.update(
-                    {k: v for k, v in ckan_config.items() if k not in ["url", "organization"]}
+                    {
+                        k: v
+                        for k, v in ckan_config.items()
+                        if k not in ["url", "organization"]
+                    }
                 )
 
             if "upload" in config_data:
@@ -214,6 +269,8 @@ class ConfigManager:
             "max_retries": self.max_retries,
             "chunk_size": self.chunk_size,
             "max_chunk_size_mb": self.max_chunk_size_mb,
+            "verify_ssl": self.verify_ssl,
+            "ssl_ca_cert": self.ssl_ca_cert,
             **self.extra_config,
         }
 
@@ -232,6 +289,8 @@ class ConfigManager:
                 "username": self.username,
                 "password": self.password,
                 "base_url": self.base_url,
+                "verify_ssl": self.verify_ssl,
+                "ssl_ca_cert": self.ssl_ca_cert,
             },
             "ckan": {
                 "url": self.ckan_url,

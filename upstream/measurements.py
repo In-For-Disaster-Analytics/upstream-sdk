@@ -323,7 +323,9 @@ class MeasurementManager:
         params: Dict[str, Any] = {}
         if start_date:
             params["start_date"] = (
-                start_date.isoformat() if hasattr(start_date, "isoformat") else start_date
+                start_date.isoformat()
+                if hasattr(start_date, "isoformat")
+                else start_date
             )
         if end_date:
             params["end_date"] = (
@@ -355,6 +357,7 @@ class MeasurementManager:
                 headers=headers,
                 params=params,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )
 

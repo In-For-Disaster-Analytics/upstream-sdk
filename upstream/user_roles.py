@@ -24,7 +24,11 @@ class UserRoleManager:
         headers = self.auth_manager.get_headers()
         url = self.auth_manager.build_url("/api/v1/user-roles")
         response = request_json(
-            "GET", url, headers=headers, timeout=self.auth_manager.config.timeout
+            "GET",
+            url,
+            headers=headers,
+            timeout=self.auth_manager.config.timeout,
+            verify=self.auth_manager.config.request_verify,
         )
         return cast(List[Dict[str, Any]], response or [])
 
@@ -45,6 +49,7 @@ class UserRoleManager:
                 headers=headers,
                 json=payload,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )
 
@@ -56,7 +61,10 @@ class UserRoleManager:
         url = self.auth_manager.build_url(f"/api/v1/user-roles/{username}")
         try:
             response = requests.delete(
-                url, headers=headers, timeout=self.auth_manager.config.timeout
+                url,
+                headers=headers,
+                timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             )
         except requests.RequestException as exc:
             raise APIError(f"Failed to delete user role: {exc}") from exc

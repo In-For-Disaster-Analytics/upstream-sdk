@@ -30,6 +30,10 @@ class CkanApiManager:
         )
         url = self.auth_manager.build_url("/api/v1/ckan/organizations")
         response = request_json(
-            "GET", url, headers=headers, timeout=self.auth_manager.config.timeout
+            "GET",
+            url,
+            headers=headers,
+            timeout=self.auth_manager.config.timeout,
+            verify=self.auth_manager.config.request_verify,
         )
         return response or []

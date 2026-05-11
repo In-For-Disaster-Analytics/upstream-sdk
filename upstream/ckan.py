@@ -34,28 +34,33 @@ def _serialize_for_json(value: Any, max_length: int = 30000) -> str:
     elif isinstance(value, datetime):
         # Format datetime for Solr compatibility (ISO format without timezone suffix)
         # Solr expects format like: 2025-07-22T11:16:48Z
-        return value.strftime('%Y-%m-%dT%H:%M:%SZ')
+        return value.strftime("%Y-%m-%dT%H:%M:%SZ")
     elif isinstance(value, (dict, list)):
         try:
             serialized = json.dumps(value, default=str)
             if len(serialized) > max_length:
                 # Truncate large objects to prevent Solr field size errors
-                logger.warning(f"Truncating large value (length: {len(serialized)}) to fit Solr field size limit")
+                logger.warning(
+                    f"Truncating large value (length: {len(serialized)}) to fit Solr field size limit"
+                )
                 return serialized[:max_length] + "... [TRUNCATED]"
             return serialized
         except (TypeError, ValueError):
             result = str(value)
             if len(result) > max_length:
-                logger.warning(f"Truncating large string value (length: {len(result)}) to fit Solr field size limit")
+                logger.warning(
+                    f"Truncating large string value (length: {len(result)}) to fit Solr field size limit"
+                )
                 return result[:max_length] + "... [TRUNCATED]"
             return result
     else:
         result = str(value)
         if len(result) > max_length:
-            logger.warning(f"Truncating large string value (length: {len(result)}) to fit Solr field size limit")
+            logger.warning(
+                f"Truncating large string value (length: {len(result)}) to fit Solr field size limit"
+            )
             return result[:max_length] + "... [TRUNCATED]"
         return result
-
 
 
 class CKANIntegration:
@@ -77,6 +82,9 @@ class CKANIntegration:
 
         # Store timeout for use in individual requests
         self.timeout = self.config.get("timeout", 30)
+        verify_ssl = self.config.get("verify_ssl", True)
+        ssl_ca_cert = self.config.get("ssl_ca_cert")
+        self.session.verify = False if not verify_ssl else ssl_ca_cert or True
 
         # Set up authentication if provided
         api_key = self.config.get("api_key")
@@ -128,14 +136,18 @@ class CKANIntegration:
             dataset_data["owner_org"] = owner_org
         elif not name.startswith("test-"):
             # Only require organization for non-test datasets
-            raise APIError("Organization is required for dataset creation. Please set CKAN_ORGANIZATION environment variable or pass organization parameter.")
+            raise APIError(
+                "Organization is required for dataset creation. Please set CKAN_ORGANIZATION environment variable or pass organization parameter."
+            )
 
         # Remove None values
         dataset_data = {k: v for k, v in dataset_data.items() if v is not None}
 
         try:
             response = self.session.post(
-                f"{self.ckan_url}/api/3/action/package_create", json=dataset_data, timeout=self.timeout
+                f"{self.ckan_url}/api/3/action/package_create",
+                json=dataset_data,
+                timeout=self.timeout,
             )
             response.raise_for_status()
 
@@ -166,7 +178,9 @@ class CKANIntegration:
         """
         try:
             response = self.session.get(
-                f"{self.ckan_url}/api/3/action/package_show", params={"id": dataset_id}, timeout=self.timeout
+                f"{self.ckan_url}/api/3/action/package_show",
+                params={"id": dataset_id},
+                timeout=self.timeout,
             )
             response.raise_for_status()
 
@@ -178,7 +192,11 @@ class CKANIntegration:
             return cast(Dict[str, Any], result["result"])
 
         except requests.exceptions.RequestException as e:
-            if hasattr(e, "response") and e.response is not None and e.response.status_code == 404:
+            if (
+                hasattr(e, "response")
+                and e.response is not None
+                and e.response.status_code == 404
+            ):
                 raise APIError(f"CKAN dataset not found: {dataset_id}")
             raise APIError(f"Failed to get CKAN dataset: {e}")
 
@@ -189,7 +207,7 @@ class CKANIntegration:
         custom_tags: Optional[List[str]] = None,
         merge_extras: bool = True,
         merge_tags: bool = True,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Update CKAN dataset with enhanced metadata support.
@@ -233,28 +251,36 @@ class CKANIntegration:
 
         # Handle custom dataset metadata (extras)
         if dataset_metadata:
-            current_extras = current_dataset.get('extras', [])
+            current_extras = current_dataset.get("extras", [])
 
             if merge_extras:
                 # Merge with existing extras
                 # Convert existing extras to dict for easier manipulation
-                extras_dict = {extra['key']: extra['value'] for extra in current_extras}
+                extras_dict = {extra["key"]: extra["value"] for extra in current_extras}
 
                 # Add/update with new metadata
                 for key, value in dataset_metadata.items():
                     extras_dict[key] = _serialize_for_json(value)
 
                 # Convert back to list format
-                updated_data['extras'] = [{"key": k, "value": v} for k, v in extras_dict.items()]
+                updated_data["extras"] = [
+                    {"key": k, "value": v} for k, v in extras_dict.items()
+                ]
             else:
                 # Replace existing extras with only the new metadata
-                updated_data['extras'] = [{"key": k, "value": _serialize_for_json(v)} for k, v in dataset_metadata.items()]
+                updated_data["extras"] = [
+                    {"key": k, "value": _serialize_for_json(v)}
+                    for k, v in dataset_metadata.items()
+                ]
 
         # Handle custom tags
         if custom_tags is not None:
             current_tags = []
-            if current_dataset.get('tags'):
-                current_tags = [tag['name'] if isinstance(tag, dict) else tag for tag in current_dataset['tags']]
+            if current_dataset.get("tags"):
+                current_tags = [
+                    tag["name"] if isinstance(tag, dict) else tag
+                    for tag in current_dataset["tags"]
+                ]
 
             if merge_tags:
                 # Merge with existing tags (avoid duplicates)
@@ -263,7 +289,7 @@ class CKANIntegration:
                 # Replace with only the new tags
                 all_tags = custom_tags
 
-            updated_data['tags'] = all_tags
+            updated_data["tags"] = all_tags
 
         # Handle tags from kwargs (for backward compatibility)
         if "tags" in updated_data and updated_data["tags"]:
@@ -282,14 +308,16 @@ class CKANIntegration:
 
         try:
             response = self.session.post(
-                f"{self.ckan_url}/api/3/action/package_update", json=updated_data, timeout=self.timeout
+                f"{self.ckan_url}/api/3/action/package_update",
+                json=updated_data,
+                timeout=self.timeout,
             )
             response.raise_for_status()
 
             result = response.json()
 
             if not result.get("success"):
-                error_details = result.get('error', {})
+                error_details = result.get("error", {})
                 raise APIError(f"CKAN dataset update failed: {error_details}")
 
             dataset = result["result"]
@@ -300,7 +328,7 @@ class CKANIntegration:
         except requests.exceptions.RequestException as e:
             # Log the response content for debugging
             error_msg = f"Failed to update CKAN dataset: {e}"
-            if hasattr(e, 'response') and e.response is not None:
+            if hasattr(e, "response") and e.response is not None:
                 try:
                     error_content = e.response.json()
                     error_msg += f" - Response: {error_content}"
@@ -320,7 +348,9 @@ class CKANIntegration:
         """
         try:
             response = self.session.post(
-                f"{self.ckan_url}/api/3/action/package_delete", json={"id": dataset_id}, timeout=self.timeout
+                f"{self.ckan_url}/api/3/action/package_delete",
+                json={"id": dataset_id},
+                timeout=self.timeout,
             )
             response.raise_for_status()
 
@@ -377,7 +407,11 @@ class CKANIntegration:
         # Add metadata fields directly to resource (not in extras array)
         if metadata:
             for meta_item in metadata:
-                if isinstance(meta_item, dict) and "key" in meta_item and "value" in meta_item:
+                if (
+                    isinstance(meta_item, dict)
+                    and "key" in meta_item
+                    and "value" in meta_item
+                ):
                     resource_data[meta_item["key"]] = meta_item["value"]
 
         # Handle file upload vs URL
@@ -400,7 +434,7 @@ class CKANIntegration:
                     f"{self.ckan_url}/api/3/action/resource_create",
                     data=resource_data,
                     files=files,
-                    timeout=self.timeout
+                    timeout=self.timeout,
                 )
                 response.raise_for_status()
             finally:
@@ -413,7 +447,9 @@ class CKANIntegration:
                 raise APIError("Either url, file_path, or file_obj must be provided")
             resource_data["url"] = url
             response = self.session.post(
-                f"{self.ckan_url}/api/3/action/resource_create", json=resource_data, timeout=self.timeout
+                f"{self.ckan_url}/api/3/action/resource_create",
+                json=resource_data,
+                timeout=self.timeout,
             )
             response.raise_for_status()
 
@@ -469,7 +505,9 @@ class CKANIntegration:
 
         try:
             response = self.session.get(
-                f"{self.ckan_url}/api/3/action/package_search", params=params, timeout=self.timeout
+                f"{self.ckan_url}/api/3/action/package_search",
+                params=params,
+                timeout=self.timeout,
             )
             response.raise_for_status()
 
@@ -500,7 +538,7 @@ class CKANIntegration:
         resource_metadata: Optional[Dict[str, Any]] = None,
         custom_tags: Optional[List[str]] = None,
         auto_publish: bool = True,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> Dict[str, Any]:
         """
         Publish campaign data to CKAN with custom metadata support.
@@ -527,7 +565,9 @@ class CKANIntegration:
         if campaign_data.description:
             description = campaign_data.description
         else:
-            description = f"\nSensor Types: {', '.join(campaign_data.summary.sensor_types)}"
+            description = (
+                f"\nSensor Types: {', '.join(campaign_data.summary.sensor_types)}"
+            )
 
         # Prepare base tags
         base_tags = ["environmental", "sensors", "upstream"]
@@ -542,7 +582,10 @@ class CKANIntegration:
             {"key": "campaign_name", "value": campaign_data.name or ""},
             {"key": "campaign_description", "value": campaign_data.description or ""},
             {"key": "campaign_contact_name", "value": campaign_data.contact_name or ""},
-            {"key": "campaign_contact_email", "value": campaign_data.contact_email or ""},
+            {
+                "key": "campaign_contact_email",
+                "value": campaign_data.contact_email or "",
+            },
             {"key": "campaign_allocation", "value": campaign_data.allocation or ""},
         ]
 
@@ -558,7 +601,7 @@ class CKANIntegration:
             "notes": description,
             "tags": base_tags,
             "extras": base_extras,
-            **kwargs  # Allow additional dataset-level parameters
+            **kwargs,  # Allow additional dataset-level parameters
         }
 
         try:
@@ -578,17 +621,30 @@ class CKANIntegration:
             # Add resources for different data types
             resources_created = []
 
-
             # Prepare base station metadata (avoid storing large sensor objects to prevent Solr field size limits)
             base_station_metadata = [
                 {"key": "station_id", "value": str(station_data.id)},
                 {"key": "station_name", "value": station_data.name or ""},
                 {"key": "station_description", "value": station_data.description or ""},
-                {"key": "station_contact_name", "value": station_data.contact_name or ""},
-                {"key": "station_contact_email", "value": station_data.contact_email or ""},
+                {
+                    "key": "station_contact_name",
+                    "value": station_data.contact_name or "",
+                },
+                {
+                    "key": "station_contact_email",
+                    "value": station_data.contact_email or "",
+                },
                 {"key": "station_active", "value": str(station_data.active)},
-                {"key": "station_geometry", "value": _serialize_for_json(station_data.geometry)},
-                {"key": "station_sensors_count", "value": str(len(station_data.sensors) if station_data.sensors else 0)},
+                {
+                    "key": "station_geometry",
+                    "value": _serialize_for_json(station_data.geometry),
+                },
+                {
+                    "key": "station_sensors_count",
+                    "value": str(
+                        len(station_data.sensors) if station_data.sensors else 0
+                    ),
+                },
                 # {"key": "station_sensors_aliases", "value": _serialize_for_json([sensor.alias for sensor in station_data.sensors] if station_data.sensors else [])},
                 # {"key": "station_sensors_units", "value": _serialize_for_json([sensor.units for sensor in station_data.sensors] if station_data.sensors else [])},
                 # {"key": "station_sensors_variablename", "value": _serialize_for_json([sensor.variablename for sensor in station_data.sensors] if station_data.sensors else [])},
@@ -597,11 +653,12 @@ class CKANIntegration:
             # Add custom resource metadata
             if resource_metadata:
                 for key, value in resource_metadata.items():
-                    base_station_metadata.append({"key": key, "value": _serialize_for_json(value)})
-
+                    base_station_metadata.append(
+                        {"key": key, "value": _serialize_for_json(value)}
+                    )
 
             # Add sensors resource (file upload or URL)
-            published_at = datetime.now().strftime('%Y-%m-%dT%H:%M:%SZ')
+            published_at = datetime.now().strftime("%Y-%m-%dT%H:%M:%SZ")
             sensors_resource = self.create_resource(
                 dataset_id=dataset["id"],
                 name=f"{station_data.name} - Sensors Configuration - {published_at}",
@@ -614,13 +671,13 @@ class CKANIntegration:
 
             # Add measurements resource (file upload or URL)
             measurements_resource = self.create_resource(
-                    dataset_id=dataset["id"],
-                    name=f"{station_data.name} - Measurement Data - {published_at}",
-                    file_obj=station_measurements,
-                    format="CSV",
-                    description="Environmental sensor measurements",
-                    metadata=base_station_metadata,
-                )
+                dataset_id=dataset["id"],
+                name=f"{station_data.name} - Measurement Data - {published_at}",
+                file_obj=station_measurements,
+                format="CSV",
+                description="Environmental sensor measurements",
+                metadata=base_station_metadata,
+            )
             resources_created.append(measurements_resource)
 
             # Publish dataset if requested
@@ -651,7 +708,9 @@ class CKANIntegration:
         """
         try:
             response = self.session.get(
-                f"{self.ckan_url}/api/3/action/organization_show", params={"id": org_id}, timeout=self.timeout
+                f"{self.ckan_url}/api/3/action/organization_show",
+                params={"id": org_id},
+                timeout=self.timeout,
             )
             response.raise_for_status()
 
@@ -678,7 +737,7 @@ class CKANIntegration:
             response = self.session.get(
                 f"{self.ckan_url}/api/3/action/organization_list",
                 params={"all_fields": True},
-                timeout=self.timeout
+                timeout=self.timeout,
             )
             response.raise_for_status()
 

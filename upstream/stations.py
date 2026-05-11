@@ -290,7 +290,11 @@ class StationManager:
         headers = self.auth_manager.get_headers()
         try:
             response = requests.get(
-                url, headers=headers, stream=True, timeout=self.auth_manager.config.timeout
+                url,
+                headers=headers,
+                stream=True,
+                timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             )
         except requests.RequestException as exc:
             raise APIError(f"Failed to export sensors CSV: {exc}") from exc
@@ -341,6 +345,7 @@ class StationManager:
                 params=params,
                 stream=True,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             )
         except requests.RequestException as exc:
             raise APIError(f"Failed to export measurements CSV: {exc}") from exc
@@ -395,6 +400,7 @@ class StationManager:
                 headers=headers,
                 json=payload,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )
 
@@ -433,6 +439,7 @@ class StationManager:
                 headers=headers,
                 json=payload,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )
 
@@ -452,7 +459,9 @@ class StationManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         try:
-            print(f"Exporting sensors for station {station_id} in campaign {campaign_id}")
+            print(
+                f"Exporting sensors for station {station_id} in campaign {campaign_id}"
+            )
 
             with self.auth_manager.get_api_client() as api_client:
                 stations_api = StationsApi(api_client)
@@ -462,25 +471,30 @@ class StationManager:
                 )
 
                 if isinstance(response, str):
-                    csv_bytes = response.encode('utf-8')
+                    csv_bytes = response.encode("utf-8")
                 elif isinstance(response, bytes):
                     csv_bytes = response
                 else:
                     # Handle other response types by converting to string first
-                    csv_bytes = str(response).encode('utf-8')
+                    csv_bytes = str(response).encode("utf-8")
 
                 return io.BytesIO(csv_bytes)
 
-
         except ApiException as e:
             if e.status == 404:
-                raise APIError(f"Station not found: {station_id}", status_code=404) from e
+                raise APIError(
+                    f"Station not found: {station_id}", status_code=404
+                ) from e
             else:
-                raise APIError(f"Failed to export station data: {e}", status_code=e.status) from e
+                raise APIError(
+                    f"Failed to export station data: {e}", status_code=e.status
+                ) from e
         except Exception as e:
             raise APIError(f"Failed to export station data: {e}") from e
 
-    def export_station_measurements(self, station_id: int, campaign_id: int) -> BinaryIO:
+    def export_station_measurements(
+        self, station_id: int, campaign_id: int
+    ) -> BinaryIO:
         """
         Export station data as a stream.
 
@@ -507,19 +521,23 @@ class StationManager:
 
                 # Convert response to bytes if it's a string, then create a BytesIO stream
                 if isinstance(response, str):
-                    csv_bytes = response.encode('utf-8')
+                    csv_bytes = response.encode("utf-8")
                 elif isinstance(response, bytes):
                     csv_bytes = response
                 else:
                     # Handle other response types by converting to string first
-                    csv_bytes = str(response).encode('utf-8')
+                    csv_bytes = str(response).encode("utf-8")
 
                 return io.BytesIO(csv_bytes)
 
         except ApiException as e:
             if e.status == 404:
-                raise APIError(f"Station not found: {station_id}", status_code=404) from e
+                raise APIError(
+                    f"Station not found: {station_id}", status_code=404
+                ) from e
             else:
-                raise APIError(f"Failed to export station data: {e}", status_code=e.status) from e
+                raise APIError(
+                    f"Failed to export station data: {e}", status_code=e.status
+                ) from e
         except Exception as e:
             raise APIError(f"Failed to export station data: {e}") from e

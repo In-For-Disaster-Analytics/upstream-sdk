@@ -219,11 +219,17 @@ class CampaignManager:
             raise ValidationError("Campaign ID is required", field="campaign_id")
 
         headers = self.auth_manager.get_headers()
-        url = self.auth_manager.build_url(f"/api/v1/campaigns/{campaign_id}/permissions")
+        url = self.auth_manager.build_url(
+            f"/api/v1/campaigns/{campaign_id}/permissions"
+        )
         return cast(
             Dict[str, Any],
             request_json(
-                "GET", url, headers=headers, timeout=self.auth_manager.config.timeout
+                "GET",
+                url,
+                headers=headers,
+                timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )
 
@@ -257,6 +263,7 @@ class CampaignManager:
                 headers=headers,
                 json=payload,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )
 
@@ -290,5 +297,6 @@ class CampaignManager:
                 headers=headers,
                 json=payload,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )

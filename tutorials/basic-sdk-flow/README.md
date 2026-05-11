@@ -36,6 +36,27 @@ jupyter notebook
 
 Open notebook `01_...` first, then `02_...`.
 
+## SSL Certificate Issues
+
+If notebook 1 fails with `SSLCertVerificationError: unable to get local issuer
+certificate`, reinstall the current SDK in the notebook environment. The SDK
+uses `certifi` as its default CA bundle for both direct requests and the
+generated OpenAPI client, so no notebook code change is needed.
+
+```bash
+python -m pip install --upgrade --force-reinstall -e /Users/wmobley/Documents/GitHub/upstream/upstream-sdk
+```
+
+For custom institutional CA bundles, set the path once before starting Jupyter:
+
+```bash
+export UPSTREAM_SSL_CA_CERT="/path/to/institutional-ca-bundle.pem"
+```
+
+The SDK also honors `REQUESTS_CA_BUNDLE`, `CURL_CA_BUNDLE`, and
+`SSL_CERT_FILE`. Avoid setting `verify_ssl=False` except as a temporary
+diagnostic check.
+
 ## Other Files
 
 - `utils.py`: shared notebook helpers

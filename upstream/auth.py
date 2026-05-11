@@ -30,6 +30,7 @@ class AuthManager:
         """
         self.config = config
         self.configuration = Configuration(host=config.base_url)
+        self._configure_tls()
         self.api_client: Optional[ApiClient] = None
         self.access_token: Optional[str] = None
         self.token_expires_at: Optional[datetime] = None
@@ -63,7 +64,12 @@ class AuthManager:
                 "password": self.config.password,
                 "grant_type": "password",
             }
-            response = requests.post(url, data=payload, timeout=self.config.timeout)
+            response = requests.post(
+                url,
+                data=payload,
+                timeout=self.config.timeout,
+                verify=self.config.request_verify,
+            )
 
             if response.status_code == 401:
                 raise AuthenticationError("Invalid username or password")
@@ -79,7 +85,9 @@ class AuthManager:
             # Store token information
             self.access_token = data.get("access_token")
             if not self.access_token:
-                raise AuthenticationError("Authentication response missing access token")
+                raise AuthenticationError(
+                    "Authentication response missing access token"
+                )
             self.configuration.access_token = self.access_token
 
             # Additional auth context (optional)
@@ -132,6 +140,17 @@ class AuthManager:
                 raise AuthenticationError("Failed to authenticate")
 
         return ApiClient(self.configuration)
+
+    def _configure_tls(self) -> None:
+        """Apply SDK TLS settings to the generated OpenAPI client."""
+        if hasattr(self.configuration, "verify_ssl"):
+            self.configuration.verify_ssl = self.config.verify_ssl
+
+        if not self.config.verify_ssl:
+            return
+
+        if hasattr(self.configuration, "ssl_ca_cert"):
+            self.configuration.ssl_ca_cert = self.config.ssl_ca_cert
 
     def get_headers(
         self,

@@ -49,5 +49,6 @@ class PodsManager:
                 headers=headers,
                 json=payload,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )

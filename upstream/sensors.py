@@ -380,6 +380,7 @@ class SensorManager:
                 url,
                 headers=headers,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             )
             logger.info(
                 "Force updated statistics for all sensors in station %s, campaign %s",
@@ -389,7 +390,9 @@ class SensorManager:
             return response or {}
         except APIError as e:
             if e.status_code == 404:
-                raise APIError(f"Station not found: {station_id}", status_code=404) from e
+                raise APIError(
+                    f"Station not found: {station_id}", status_code=404
+                ) from e
             raise APIError(
                 f"Failed to force update sensor statistics: {e}",
                 status_code=e.status_code,
@@ -436,6 +439,7 @@ class SensorManager:
                 url,
                 headers=headers,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             )
             logger.info(
                 "Force updated statistics for sensor %s in station %s, campaign %s",
@@ -492,6 +496,7 @@ class SensorManager:
                 headers=headers,
                 json=payload,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )
 
@@ -533,5 +538,6 @@ class SensorManager:
                 headers=headers,
                 json=payload,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             ),
         )

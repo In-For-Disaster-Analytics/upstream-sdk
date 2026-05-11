@@ -2,7 +2,7 @@
 HTTP helpers for Upstream SDK.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Union
 
 import requests
 
@@ -16,17 +16,20 @@ def request_json(
     params: Optional[Dict[str, Any]] = None,
     json: Optional[Dict[str, Any]] = None,
     timeout: int = 30,
+    verify: Optional[Union[bool, str]] = None,
 ) -> Any:
     """Perform an HTTP request and return JSON content."""
+    request_kwargs: Dict[str, Any] = {
+        "headers": headers,
+        "params": params,
+        "json": json,
+        "timeout": timeout,
+    }
+    if verify is not None:
+        request_kwargs["verify"] = verify
+
     try:
-        response = requests.request(
-            method,
-            url,
-            headers=headers,
-            params=params,
-            json=json,
-            timeout=timeout,
-        )
+        response = requests.request(method, url, **request_kwargs)
     except requests.RequestException as exc:
         raise NetworkError(f"Request failed: {exc}") from exc
 

@@ -21,6 +21,10 @@ class SensorVariableManager:
         headers = self.auth_manager.get_headers()
         url = self.auth_manager.build_url("/api/v1/sensor_variables")
         response = request_json(
-            "GET", url, headers=headers, timeout=self.auth_manager.config.timeout
+            "GET",
+            url,
+            headers=headers,
+            timeout=self.auth_manager.config.timeout,
+            verify=self.auth_manager.config.request_verify,
         )
         return response or []

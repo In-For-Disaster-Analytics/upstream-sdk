@@ -481,7 +481,9 @@ class DataUploader:
             f"/api/v1/uploadfile_csv/campaign/{campaign_id}/station/{station_id}/sensor"
         )
         headers = self.auth_manager.get_headers(
-            include_tapis_token=bool(tapis_token or self.auth_manager.get_tapis_token()),
+            include_tapis_token=bool(
+                tapis_token or self.auth_manager.get_tapis_token()
+            ),
             tapis_token=tapis_token,
         )
         headers.pop("Content-Type", None)
@@ -514,6 +516,7 @@ class DataUploader:
                 headers=headers,
                 files=files,
                 timeout=self.auth_manager.config.timeout,
+                verify=self.auth_manager.config.request_verify,
             )
         finally:
             for item in (sensors_file, measurements_file):
