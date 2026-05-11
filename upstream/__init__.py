@@ -23,7 +23,7 @@ from .sensor_variables import SensorVariableManager
 from .stations import StationManager
 from .user_roles import UserRoleManager
 
-__version__ = "1.1.0"
+__version__ = "1.1.1"
 __author__ = "In-For-Disaster-Analytics Team"
 __email__ = "info@tacc.utexas.edu"
 __license__ = "MIT"
