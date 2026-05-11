@@ -2,6 +2,10 @@
 
 This folder contains a two-step tutorial flow.
 
+See also:
+
+- `../TUTORIAL_NOTES.md` for notes on what the SDK flow demonstrates and how it maps to UI features.
+
 ## Notebooks
 
 1. `01_register_campaign_station_upload.ipynb`
