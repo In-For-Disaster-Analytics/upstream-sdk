@@ -54,7 +54,7 @@ class ConfigManager:
         self.username = username or os.getenv("UPSTREAM_USERNAME")
         self.password = password or os.getenv("UPSTREAM_PASSWORD")
         self.base_url = base_url or os.getenv(
-            "UPSTREAM_BASE_URL", "https://upstreamapi.pods.tacc.tapis.io"
+            "UPSTREAM_BASE_URL", "https://upstreamapi.pods.portals.tapis.io"
         )
         self.ckan_url = ckan_url or os.getenv(
             "CKAN_URL", "https://ckan.tacc.utexas.edu"
@@ -113,13 +113,27 @@ class ConfigManager:
             return base_url
 
         # Known web host -> API host mapping for pods
-        if parsed.netloc == "upstream.pods.tacc.tapis.io":
+        if parsed.netloc == "upstream.pods.portals.tapis.io":
             logger.warning(
-                "Base URL %s points to the web host; switching to API host https://upstreamapi.pods.tacc.tapis.io",
+                "Base URL %s points to the web host; switching to API host https://upstreamapi.pods.portals.tapis.io",
                 base_url,
             )
-            parsed = parsed._replace(netloc="upstreamapi.pods.tacc.tapis.io", scheme="https")
+            parsed = parsed._replace(netloc="upstreamapi.pods.portals.tapis.io", scheme="https")
             return urlunparse(parsed)
+
+        # Pods portal hosts expose the UI on "<name>.pods.portals.tapis.io" and
+        # the API on "<name>api.pods.portals.tapis.io".
+        if parsed.netloc.endswith(".pods.portals.tapis.io"):
+            host_prefix = parsed.netloc[: -len(".pods.portals.tapis.io")]
+            if host_prefix and not host_prefix.endswith("api"):
+                api_netloc = f"{host_prefix}api.pods.portals.tapis.io"
+                logger.warning(
+                    "Base URL %s points to the web host; switching to API host https://%s",
+                    base_url,
+                    api_netloc,
+                )
+                parsed = parsed._replace(netloc=api_netloc, scheme="https")
+                return urlunparse(parsed)
 
         return base_url
 

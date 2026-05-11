@@ -46,7 +46,7 @@ Basic Usage
    client = UpstreamClient(
        username="your_username",
        password="your_password",
-       base_url="https://upstreamapi.pods.tacc.tapis.io"
+       base_url="https://upstreamapi.pods.portals.tapis.io"
    )
 
    # Create campaign and station
