@@ -18,6 +18,8 @@ from .exceptions import (
     UpstreamError,
     ValidationError,
 )
+from .metadata_schema import MetadataSchemaManager
+from .notes import NoteManager
 from .pods import PodsManager
 from .sensor_variables import SensorVariableManager
 from .stations import StationManager
@@ -41,6 +43,10 @@ __all__ = [
     "PodsManager",
     # User roles management
     "UserRoleManager",
+    # Notes management
+    "NoteManager",
+    # Metadata schema management
+    "MetadataSchemaManager",
     # Sensor variables
     "SensorVariableManager",
     # Station management

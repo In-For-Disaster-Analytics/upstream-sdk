@@ -8,6 +8,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- `NoteManager` (`client.notes`): create/list/update/delete notes at campaign,
+  station, sensor, and measurement scope, plus location-pin listings for
+  campaign and station scopes. Measurement notes support an independent WKT
+  `location`.
+- `MetadataSchemaManager` (`client.metadata_schema`): create/list/get/update/delete
+  custom metadata schema fields.
 - Initial project setup with modern Python packaging
 - Core SDK structure with authentication, campaigns, stations, data upload, and CKAN integration
 - Comprehensive test suite with pytest

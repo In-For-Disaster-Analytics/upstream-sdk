@@ -35,6 +35,8 @@ from .campaigns import CampaignManager
 from .ckan_api import CkanApiManager
 from .data import DataUploader
 from .measurements import MeasurementManager
+from .metadata_schema import MetadataSchemaManager
+from .notes import NoteManager
 from .pods import PodsManager
 from .sensor_variables import SensorVariableManager
 from .sensors import SensorManager
@@ -101,6 +103,8 @@ class UpstreamClient:
         self.ckan_api = CkanApiManager(self.auth_manager)
         self.pods = PodsManager(self.auth_manager)
         self.user_roles = UserRoleManager(self.auth_manager)
+        self.notes = NoteManager(self.auth_manager)
+        self.metadata_schema = MetadataSchemaManager(self.auth_manager)
 
         # Initialize CKAN integration if URL provided
         if config.ckan_url:
