@@ -143,7 +143,8 @@ class NoteManager:
             Dict[str, Any],
             self._request(
                 "GET",
-                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/notes/locations",
+                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+                "/notes/locations",
             ),
         )
 
@@ -162,7 +163,8 @@ class NoteManager:
             Dict[str, Any],
             self._request(
                 "PATCH",
-                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/notes/{note_id}",
+                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+                f"/notes/{note_id}",
                 json={"content": content},
             ),
         )
@@ -196,7 +198,8 @@ class NoteManager:
             Dict[str, Any],
             self._request(
                 "GET",
-                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/notes",
+                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+                f"/sensors/{sensor_id}/notes",
             ),
         )
 
@@ -215,7 +218,8 @@ class NoteManager:
             Dict[str, Any],
             self._request(
                 "POST",
-                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/notes",
+                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+                f"/sensors/{sensor_id}/notes",
                 json={"content": content},
             ),
         )
@@ -242,7 +246,8 @@ class NoteManager:
             Dict[str, Any],
             self._request(
                 "PATCH",
-                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/notes/{note_id}",
+                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+                f"/sensors/{sensor_id}/notes/{note_id}",
                 json={"content": content},
             ),
         )
@@ -260,7 +265,8 @@ class NoteManager:
             raise ValidationError("Note ID is required", field="note_id")
         self._request(
             "DELETE",
-            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}/notes/{note_id}",
+            f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+            f"/sensors/{sensor_id}/notes/{note_id}",
         )
 
     # -- measurement-scoped (the only scope that carries its own location) --
@@ -280,8 +286,8 @@ class NoteManager:
             Dict[str, Any],
             self._request(
                 "GET",
-                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}"
-                f"/measurements/{measurement_id}/notes",
+                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+                f"/sensors/{sensor_id}/measurements/{measurement_id}/notes",
             ),
         )
 
@@ -314,8 +320,8 @@ class NoteManager:
             Dict[str, Any],
             self._request(
                 "POST",
-                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}"
-                f"/measurements/{measurement_id}/notes",
+                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+                f"/sensors/{sensor_id}/measurements/{measurement_id}/notes",
                 json=payload,
             ),
         )
@@ -349,8 +355,8 @@ class NoteManager:
             Dict[str, Any],
             self._request(
                 "PATCH",
-                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}/sensors/{sensor_id}"
-                f"/measurements/{measurement_id}/notes/{note_id}",
+                f"/api/v1/campaigns/{campaign_id}/stations/{station_id}"
+                f"/sensors/{sensor_id}/measurements/{measurement_id}/notes/{note_id}",
                 json=payload,
             ),
         )
