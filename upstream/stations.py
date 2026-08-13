@@ -372,6 +372,8 @@ class StationManager:
         cascade: bool = False,
         force: bool = False,
         organization: Optional[str] = None,
+        ckan_dataset_name: Optional[str] = None,
+        patch_existing_ckan_dataset: bool = False,
         tapis_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Publish a station (optionally cascading to sensors)."""
@@ -391,6 +393,8 @@ class StationManager:
             "cascade": cascade,
             "force": force,
             "organization": organization,
+            "ckan_dataset_name": ckan_dataset_name,
+            "patch_existing_ckan_dataset": patch_existing_ckan_dataset,
         }
         return cast(
             Dict[str, Any],

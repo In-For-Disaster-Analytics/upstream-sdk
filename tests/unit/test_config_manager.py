@@ -23,6 +23,26 @@ def test_config_manager_keeps_api_host():
     assert config.base_url == "https://upstreamapi.pods.portals.tapis.io"
 
 
+def test_config_manager_strips_api_v1_suffix_from_base_url():
+    config = ConfigManager(
+        username="user",
+        password="pass",
+        base_url="https://upstreamapi.pods.portals.tapis.io/api/v1/",
+    )
+
+    assert config.base_url == "https://upstreamapi.pods.portals.tapis.io"
+
+
+def test_config_manager_strips_api_v1_suffix_after_deployment_prefix():
+    config = ConfigManager(
+        username="user",
+        password="pass",
+        base_url="https://upstreamapi.pods.portals.tapis.io/dev/api/v1/",
+    )
+
+    assert config.base_url == "https://upstreamapi.pods.portals.tapis.io/dev"
+
+
 def test_config_manager_defaults_to_certifi_ca_bundle(monkeypatch):
     for env_name in (
         "UPSTREAM_SSL_CA_CERT",

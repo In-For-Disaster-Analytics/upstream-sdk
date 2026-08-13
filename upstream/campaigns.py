@@ -239,6 +239,7 @@ class CampaignManager:
         cascade: bool = True,
         force: bool = False,
         organization: Optional[str] = None,
+        patch_existing_ckan_dataset: bool = False,
         tapis_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Publish a campaign (optionally cascading to child resources)."""
@@ -254,6 +255,7 @@ class CampaignManager:
             "cascade": cascade,
             "force": force,
             "organization": organization,
+            "patch_existing_ckan_dataset": patch_existing_ckan_dataset,
         }
         return cast(
             Dict[str, Any],

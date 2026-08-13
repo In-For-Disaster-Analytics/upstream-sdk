@@ -552,6 +552,8 @@ class TestUpstreamClientCKANIntegration:
             cascade=False,
             force=False,
             organization=None,
+            ckan_dataset_name=None,
+            patch_existing_ckan_dataset=False,
             tapis_token=None,
         )
         assert result == expected_result

@@ -271,6 +271,7 @@ class UpstreamClient:
         cascade: bool = True,
         force: bool = False,
         organization: Optional[str] = None,
+        patch_existing_ckan_dataset: bool = False,
         tapis_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Publish a campaign."""
@@ -279,6 +280,7 @@ class UpstreamClient:
             cascade=cascade,
             force=force,
             organization=organization,
+            patch_existing_ckan_dataset=patch_existing_ckan_dataset,
             tapis_token=tapis_token,
         )
 
@@ -306,6 +308,8 @@ class UpstreamClient:
         cascade: bool = False,
         force: bool = False,
         organization: Optional[str] = None,
+        ckan_dataset_name: Optional[str] = None,
+        patch_existing_ckan_dataset: bool = False,
         tapis_token: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Publish a station."""
@@ -315,6 +319,8 @@ class UpstreamClient:
             cascade=cascade,
             force=force,
             organization=organization,
+            ckan_dataset_name=ckan_dataset_name,
+            patch_existing_ckan_dataset=patch_existing_ckan_dataset,
             tapis_token=tapis_token,
         )
 
@@ -682,6 +688,8 @@ class UpstreamClient:
         cascade: bool = False,
         force: bool = False,
         tapis_token: Optional[str] = None,
+        ckan_dataset_name: Optional[str] = None,
+        patch_existing_ckan_dataset: bool = False,
         dataset_metadata: Optional[Dict[str, Any]] = None,
         resource_metadata: Optional[Dict[str, Any]] = None,
         custom_tags: Optional[List[str]] = None,
@@ -697,6 +705,8 @@ class UpstreamClient:
             cascade: Whether to cascade publish to child resources
             force: Whether to force publish even if parent is unpublished
             tapis_token: Tapis access token required for CKAN operations
+            ckan_dataset_name: Optional CKAN dataset name override
+            patch_existing_ckan_dataset: Update a matching existing CKAN dataset instead of failing on name conflict
             dataset_metadata: Not supported via API publish (ignored)
             resource_metadata: Not supported via API publish (ignored)
             custom_tags: Not supported via API publish (ignored)
@@ -736,6 +746,8 @@ class UpstreamClient:
             cascade=cascade,
             force=force,
             organization=organization,
+            ckan_dataset_name=ckan_dataset_name,
+            patch_existing_ckan_dataset=patch_existing_ckan_dataset,
             tapis_token=tapis_token,
         )
 

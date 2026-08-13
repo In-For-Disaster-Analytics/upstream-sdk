@@ -161,6 +161,13 @@ class ConfigManager:
         except Exception:
             return base_url
 
+        # The SDK appends /api/v1 to endpoint paths internally. Accept a common
+        # user-supplied API root by normalizing it back to the service root.
+        if parsed.path == "/api/v1" or parsed.path.endswith("/api/v1"):
+            normalized_path = parsed.path[: -len("/api/v1")] or ""
+            parsed = parsed._replace(path=normalized_path)
+            base_url = urlunparse(parsed)
+
         # Known web host -> API host mapping for pods
         if parsed.netloc == "upstream.pods.portals.tapis.io":
             logger.warning(

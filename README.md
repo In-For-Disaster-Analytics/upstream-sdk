@@ -74,7 +74,8 @@ print(f"Added {result['response']['Total measurements added to database']} measu
 # Publish to CKAN with rich metadata
 publication = client.publish_to_ckan(
     campaign_id=campaign.id,
-    station_id=station.id
+    station_id=station.id,
+    tapis_token=tapis_token,
 )
 print(f"Data published at: {publication['ckan_url']}")
 ```
@@ -94,27 +95,13 @@ print(f"Data published at: {publication['ckan_url']}")
 Seamless data publishing to CKAN portals:
 
 ```python
-# Publish with custom metadata
+# Publish with explicit CKAN conflict handling
 publication_result = client.publish_to_ckan(
     campaign_id=campaign_id,
     station_id=station_id,
-
-    # Custom dataset metadata
-    dataset_metadata={
-        "project_name": "Air Quality Study",
-        "funding_agency": "EPA",
-        "grant_number": "EPA-2024-001"
-    },
-
-    # Custom resource metadata
-    resource_metadata={
-        "calibration_date": "2024-01-15",
-        "quality_control": "Automated + Manual Review",
-        "uncertainty_bounds": "±2% of reading"
-    },
-
-    # Custom tags for discoverability
-    custom_tags=["air-quality", "epa-funded", "quality-controlled"]
+    tapis_token=tapis_token,
+    ckan_dataset_name="air-quality-station-alpha",
+    patch_existing_ckan_dataset=True,
 )
 
 print(f"Dataset published: {publication_result['ckan_url']}")
@@ -542,7 +529,7 @@ This approach allows you to:
 #### Data Upload
 
 - **`upload_csv_data(campaign_id: str, station_id: str, sensors_file: str, measurements_file: str)`** - Upload CSV files with comprehensive response
-- **`publish_to_ckan(campaign_id: str, station_id: str, dataset_metadata: dict = None, resource_metadata: dict = None, custom_tags: list = None, **kwargs)`\*\* - Publish to CKAN with custom metadata
+- **`publish_to_ckan(campaign_id: str, station_id: str, ckan_dataset_name: str | None = None, patch_existing_ckan_dataset: bool = False, **kwargs)`** - Publish a station to CKAN through the Upstream API. If CKAN reports a dataset-name conflict, choose a new `ckan_dataset_name` or set `patch_existing_ckan_dataset=True` to update a matching existing Upstream station dataset.
 
 #### Sensor Management
 

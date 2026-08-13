@@ -32,6 +32,8 @@ class TestUpstreamClientCKANMetadata:
             cascade=False,
             force=False,
             organization=None,
+            ckan_dataset_name=None,
+            patch_existing_ckan_dataset=False,
             tapis_token=None,
         )
         assert result["success"] is True
@@ -76,6 +78,8 @@ class TestUpstreamClientCKANMetadata:
             cascade=False,
             force=False,
             organization=None,
+            ckan_dataset_name=None,
+            patch_existing_ckan_dataset=False,
             tapis_token=None,
         )
         assert result["success"] is True
@@ -111,6 +115,46 @@ class TestUpstreamClientCKANMetadata:
             cascade=False,
             force=False,
             organization=None,
+            ckan_dataset_name=None,
+            patch_existing_ckan_dataset=False,
+            tapis_token=None,
+        )
+        assert result["success"] is True
+
+    @patch("upstream.client.AuthManager")
+    def test_publish_to_ckan_forwards_conflict_options(self, mock_auth):
+        """Test publish_to_ckan forwards CKAN name/patch conflict options."""
+        mock_auth_instance = Mock()
+        mock_auth.return_value = mock_auth_instance
+
+        mock_config = Mock()
+        mock_config.ckan_url = "http://test-ckan.example.com"
+        mock_config.to_dict.return_value = {"ckan_url": "http://test-ckan.example.com"}
+        mock_auth_instance.config = mock_config
+
+        client = UpstreamClient(
+            username="test_user",
+            password="test_pass",
+            base_url="https://api.example.com",
+            ckan_url="http://test-ckan.example.com",
+        )
+
+        with patch.object(client, "publish_station", return_value={"success": True}) as mock_publish:
+            result = client.publish_to_ckan(
+                campaign_id="test-campaign-123",
+                station_id="test-station-456",
+                ckan_dataset_name="custom-dataset",
+                patch_existing_ckan_dataset=True,
+            )
+
+        mock_publish.assert_called_once_with(
+            campaign_id="test-campaign-123",
+            station_id="test-station-456",
+            cascade=False,
+            force=False,
+            organization=None,
+            ckan_dataset_name="custom-dataset",
+            patch_existing_ckan_dataset=True,
             tapis_token=None,
         )
         assert result["success"] is True
