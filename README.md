@@ -255,6 +255,8 @@ collectiontime,Lat_deg,Lon_deg,temp_01,humidity_01,PM25_01,wind_speed,co2_01
 2024-01-15T10:10:00,30.2672,-97.7431,22.9,67.5,16.1,3.1,418
 ```
 
+`collectiontime` values are interpreted in the station's declared IANA timezone when naive; timestamps carrying a timezone (`Z` or an offset such as `+00:00`) are stored as-is.
+
 ## Advanced Usage
 
 ### Sensor Analytics and Statistics

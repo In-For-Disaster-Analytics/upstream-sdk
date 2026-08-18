@@ -142,7 +142,7 @@ Both notebooks demonstrate production-ready patterns and include comprehensive e
 **Sensors CSV**: `alias,variablename,units,postprocess,postprocessscript`
 **Measurements CSV**: `collectiontime,Lat_deg,Lon_deg,<sensor_aliases>`
 
-The system expects ISO format timestamps and geographic coordinates for all measurements.
+The system expects ISO format timestamps and geographic coordinates for all measurements. Stations declare an IANA `timezone` (required at creation). Naive `collectiontime` values are interpreted in the station's timezone; timestamps with a timezone (`Z` or offset) pass through unchanged.
 
 ## Integration Points
 

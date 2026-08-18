@@ -52,7 +52,11 @@ class StationManager:
 
         Args:
             campaign_id: Parent campaign ID
-            station_create: StationCreate model instance
+            station_create: StationCreate model instance. ``timezone`` is
+                required (IANA name, e.g. ``"America/Chicago"`` or ``"UTC"``)
+                — the server rejects creations without it. Requires
+                ``upstream-api-client`` >= the release that includes the
+                ``timezone`` field on ``StationCreate``.
 
         Returns:
             Created Station instance
