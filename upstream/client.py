@@ -512,7 +512,7 @@ class UpstreamClient:
 
         Measurements CSV (measurements_file):
         - Header: collectiontime,Lat_deg,Lon_deg,{sensor_aliases...}
-        - collectiontime: Timestamp in ISO 8601 format (YYYY-MM-DDTHH:MM:SS)
+        - collectiontime: Timestamp in ISO 8601 format (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS, optionally with Z or +HH:MM)
         - Lat_deg: Latitude in decimal degrees
         - Lon_deg: Longitude in decimal degrees
         - Sensor columns: Each sensor alias from sensors.csv becomes a column header

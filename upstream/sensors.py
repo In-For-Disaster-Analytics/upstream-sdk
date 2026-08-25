@@ -279,7 +279,8 @@ class SensorManager:
 
         Measurements CSV (measurements_file):
         - Header: collectiontime,Lat_deg,Lon_deg,{sensor_aliases...}
-        - collectiontime: Timestamp in ISO 8601 format (YYYY-MM-DDTHH:MM:SS).
+        - collectiontime: Timestamp in ISO 8601 format (YYYY-MM-DD or YYYY-MM-DD HH:MM:SS,
+          optionally with Z or +HH:MM).
           Naive timestamps are interpreted in the station's declared IANA
           timezone; timestamps with a timezone (Z or offset) pass through
           unchanged.
